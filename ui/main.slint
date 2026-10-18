@@ -1,0 +1,301 @@
+import { LineEdit, CheckBox, ComboBox, ScrollView, AboutSlint, TextEdit, Palette } from "std-widgets.slint";
+
+export struct FolderRow { id: string, name: string, subtitle: string, state: string, state-color: color, paused: bool }
+export struct DetailRow { key: string, title: string, detail: string, tag: string }
+
+component Action inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary: false;
+    in property <bool> enabled: true;
+    callback clicked;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { if root.enabled { root.clicked(); } }
+    height: 34px;
+    min-width: label.preferred-width + 28px;
+    border-radius: 5px;
+    background: !root.enabled ? #ffffff08 : root.primary ? (touch.has-hover ? #c3f0f4 : #9be0e7) : touch.has-hover ? #ffffff12 : #ffffff06;
+    border-width: root.primary ? 0px : 1px;
+    border-color: Palette.foreground.with-alpha(0.1);
+    label := Text { text: root.text; font-size: 12px; color: !root.enabled ? #7c848a : root.primary ? #0c2428 : Palette.foreground; horizontal-alignment: center; vertical-alignment: center; }
+    touch := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+export component MainWindow inherits Window {
+    title: "Tide";
+    icon: @image-url("../assets/brand/tide-256.png");
+    preferred-width: 1100px; preferred-height: 730px; min-width: 920px; min-height: 620px;
+    background: root.bg;
+    default-font-family: "Microsoft YaHei UI";
+    default-font-size: 13px;
+    in property <int> theme-mode;
+    changed theme-mode => { Palette.color-scheme = root.theme-mode == 1 ? ColorScheme.light : root.theme-mode == 2 ? ColorScheme.dark : ColorScheme.unknown; }
+    property <color> bg: root.theme-mode == 1 ? #f4f6f7 : root.theme-mode == 2 ? #0b0d0e : Palette.background;
+    property <color> fg: root.theme-mode == 1 ? #172127 : root.theme-mode == 2 ? #eef2f4 : Palette.foreground;
+    property <bool> light-theme: root.bg.red > 128;
+    property <color> secondary: root.fg.with-alpha(0.58);
+    property <color> line: root.fg.with-alpha(0.08);
+    in property <[FolderRow]> folders;
+    in-out property <string> selected-id;
+    in property <string> folder-name: "你的同步空间";
+    in property <string> folder-path;
+    in property <string> remote;
+    in property <string> status: "添加文件夹，开始保留每一次修改。";
+    in property <string> status-detail;
+    in property <color> status-color: #75b7c1;
+    in property <bool> busy;
+    in property <bool> paused;
+    in property <bool> can-confirm;
+    in property <[DetailRow]> rows;
+    in-out property <int> tab;
+    in-out property <string> selected-key;
+    in property <string> empty-title: "没有待同步的改动";
+    in property <string> empty-detail: "新的修改会显示在这里。";
+    in property <string> footer: "Tide · Git 文档同步";
+    in property <bool> more-history;
+    in property <string> banner;
+    in-out property <string> search;
+    in-out property <bool> add-open;
+    in-out property <bool> settings-open;
+    in-out property <bool> about-open;
+    in-out property <bool> diff-open;
+    in-out property <bool> export-open;
+    in-out property <string> export-path;
+    in-out property <string> export-folder;
+    in-out property <string> export-revision;
+    in-out property <string> diff-text;
+    in-out property <string> add-name;
+    in-out property <string> add-path;
+    in-out property <string> add-remote;
+    in-out property <string> add-branch: "main";
+    in-out property <string> add-error;
+    in-out property <string> device-name;
+    in-out property <bool> close-to-tray: true;
+    in-out property <bool> autostart;
+    in-out property <int> theme-index;
+    in-out property <int> notification-index;
+    in-out property <string> interval: "15m";
+    in-out property <bool> on-change: true;
+    in-out property <int> policy-index;
+    in-out property <string> ignores;
+    in-out property <bool> confirm-remove;
+    callback select-folder(string);
+    callback switch-tab(int);
+    callback sync(bool);
+    callback sync-all;
+    callback toggle-pause;
+    callback open-folder;
+    callback open-config;
+    callback browse-folder;
+    callback add-folder;
+    callback save-settings;
+    callback edit-settings;
+    callback export-preferences;
+    callback import-preferences;
+    callback save-rules;
+    callback remove-folder;
+    callback load-more;
+    callback inspect-row(string);
+    callback restore;
+    callback export-file;
+    callback export-selected;
+    callback resolve(bool);
+    callback overwrite(bool);
+    callback plan;
+    callback recover;
+    callback quit;
+    pure callback matches-filter(string,string,string) -> bool;
+
+    forward-focus: key-input;
+    key-input := FocusScope {
+        key-pressed(event) => {
+            if event.modifiers.control && event.text == "r" { if event.modifiers.shift { root.sync-all(); } else { root.sync(false); } return accept; }
+            if event.modifiers.control && event.text == "n" { root.add-open = true; return accept; }
+            if event.text == Key.Escape { root.add-open = false; root.settings-open = false; root.diff-open = false; root.about-open = false; root.export-open = false; return accept; }
+            return reject;
+        }
+    HorizontalLayout {
+        spacing: 0px;
+        Rectangle {
+            width: 236px; background: root.light-theme ? #edf1f3 : #0f1213;
+            VerticalLayout {
+                padding: 18px; spacing: 12px;
+                HorizontalLayout {
+                    height: 40px;
+                    Image { source: @image-url("../assets/brand/tide-mark.svg"); width: 30px; height: 30px; image-fit: contain; }
+                    Text { text: "Tide"; color: root.fg; font-size: 21px; font-weight: 600; vertical-alignment: center; }
+                    Text { text: "PREVIEW"; color: root.secondary; font-size: 9px; vertical-alignment: center; horizontal-alignment: right; }
+                }
+                Rectangle { height: 1px; background: root.line; }
+                HorizontalLayout { height: 28px; Text { text: "同步文件夹"; color: root.secondary; font-size: 11px; vertical-alignment: center; } Action { text: "+"; clicked => { root.add-open = true; } } }
+                ScrollView {
+                    VerticalLayout {
+                        spacing: 4px; padding: 0px;
+                        for folder in root.folders: Rectangle {
+                            height: 66px; border-radius: 5px;
+                            background: folder.id == root.selected-id ? (root.light-theme ? #dce7eb : #ffffff09) : folder-touch.has-hover ? #ffffff05 : transparent;
+                            HorizontalLayout {
+                                padding: 10px; spacing: 10px;
+                                Rectangle { width: 7px; height: 7px; border-radius: 4px; background: folder.state-color; vertical-stretch: 0; }
+                                VerticalLayout { spacing: 6px;
+                                    Text { text: folder.name; color: root.fg; font-size: 13px; overflow: elide; }
+                                    Text { text: folder.state; color: root.secondary; font-size: 10px; overflow: elide; }
+                                }
+                            }
+                            folder-touch := TouchArea { clicked => { root.select-folder(folder.id); } }
+                        }
+                        Rectangle { vertical-stretch: 1; }
+                    }
+                }
+                Action { text: "全部同步    Ctrl Shift R"; clicked => { root.sync-all(); } }
+                Rectangle { height: 1px; background: root.line; }
+                HorizontalLayout { Action { text: "设置"; clicked => { root.edit-settings(); } } Action { text: "关于"; clicked => { root.about-open = true; } } }
+                Text { text: root.footer; color: root.secondary; font-size: 10px; wrap: word-wrap; }
+            }
+        }
+        Rectangle { width: 1px; background: root.line; }
+        VerticalLayout {
+            padding: 30px; spacing: 17px;
+            HorizontalLayout {
+                VerticalLayout { spacing: 7px; Text { text: root.folder-name; color: root.fg; font-size: 25px; font-weight: 600; } Text { text: root.folder-path; color: root.secondary; font-size: 11px; overflow: elide; } }
+                Action { text: root.paused ? "继续同步" : "暂停"; enabled: root.selected-id != ""; clicked => { root.toggle-pause(); } }
+                Action { text: root.busy ? "同步中…" : "立即同步"; primary: true; enabled: root.selected-id != "" && !root.paused; clicked => { root.sync(false); } }
+            }
+            Rectangle { height: 1px; background: root.line; }
+            HorizontalLayout {
+                height: 48px; spacing: 12px;
+                Rectangle { width: 9px; height: 9px; border-radius: 5px; background: root.status-color; vertical-stretch: 0; }
+                VerticalLayout { spacing: 6px;
+                    Text { text: root.status; color: root.fg; font-size: 15px; overflow: elide; }
+                    Text { text: root.status-detail; color: root.secondary; font-size: 11px; overflow: elide; }
+                }
+            }
+            if root.banner != "": Rectangle { height: notice.preferred-height + 20px; background: root.light-theme ? #e5ecee : #ffffff05; border-radius: 5px;
+                notice := Text { x: 10px; y: 10px; width: parent.width - 20px; text: root.banner; color: root.secondary; font-size: 11px; wrap: word-wrap; }
+            }
+            if root.can-confirm: HorizontalLayout {
+                Action { text: "查看首次同步预览"; clicked => { root.plan(); } }
+                Action { text: "保留两份，继续首次同步"; primary: true; clicked => { root.sync(true); } }
+            }
+            HorizontalLayout {
+                height: 34px; spacing: 5px;
+                for title[index] in ["改动", "历史", "冲突", "规则", "同步记录"]: Rectangle {
+                    width: 65px; height: 34px;
+                    Text { text: title; color: root.tab == index ? root.fg : root.secondary; horizontal-alignment: center; vertical-alignment: center; font-size: 12px; }
+                    Rectangle { y: parent.height - 2px; height: 2px; background: root.tab == index ? #69c0cb : transparent; }
+                    TouchArea { clicked => { root.switch-tab(index); } }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                LineEdit { text <=> root.search; placeholder-text: "筛选当前列表"; preferred-width: 170px; }
+            }
+            Rectangle { height: 1px; background: root.line; }
+            if root.tab != 3: VerticalLayout {
+                spacing: 0px;
+                if root.rows.length == 0: VerticalLayout {
+                    padding-top: 80px; padding-bottom: 80px; spacing: 12px;
+                    Text { text: root.empty-title; color: root.fg; font-size: 17px; horizontal-alignment: center; }
+                    Text { text: root.empty-detail; color: root.secondary; font-size: 12px; horizontal-alignment: center; wrap: word-wrap; }
+                }
+                ScrollView {
+                    VerticalLayout { padding: 0px; spacing: 0px;
+                        for row in root.rows: Rectangle {
+                            visible: root.matches-filter(root.search,row.title,row.detail);
+                            height: self.visible ? 64px : 0px;
+                            background: root.selected-key == row.key ? (root.light-theme ? #e0e9ed : #ffffff09) : row-touch.has-hover ? #ffffff04 : transparent;
+                            VerticalLayout { padding: 12px; spacing: 8px;
+                                HorizontalLayout { Text { text: row.title; color: root.fg; font-size: 12px; overflow: elide; } Text { text: row.tag; color: root.secondary; font-size: 10px; horizontal-alignment: right; } }
+                                Text { text: row.detail; color: root.secondary; font-size: 10px; overflow: elide; }
+                            }
+                            Rectangle { y: parent.height - 1px; height: 1px; background: root.line; }
+                            row-touch := TouchArea { clicked => { root.selected-key = row.key; } double-clicked => { root.inspect-row(row.key); } }
+                        }
+                        Rectangle { vertical-stretch: 1; }
+                    }
+                }
+                if root.tab == 1: HorizontalLayout { spacing: 8px;
+                    Action { text: "查看差异"; enabled: root.selected-key != ""; clicked => { root.inspect-row(root.selected-key); } }
+                    Action { text: "恢复此版本"; enabled: root.selected-key != "" && !root.busy; clicked => { root.restore(); } }
+                    Action { text: "导出文件"; enabled: root.selected-key != ""; clicked => { root.export-file(); } }
+                    Rectangle { horizontal-stretch: 1; }
+                    Action { text: "加载更多"; enabled: root.more-history; clicked => { root.load-more(); } }
+                }
+                if root.tab == 2: HorizontalLayout {
+                    Action { text: "保留本地版本"; enabled: root.selected-key != "" && !root.busy; clicked => { root.resolve(true); } }
+                    Action { text: "保留远端版本"; enabled: root.selected-key != "" && !root.busy; clicked => { root.resolve(false); } }
+                    Rectangle { horizontal-stretch: 1; }
+                }
+            }
+            if root.tab == 3: ScrollView { VerticalLayout { spacing: 15px; padding: 10px;
+                Text { text: "同步规则"; color: root.fg; font-size: 16px; }
+                Text { text: root.remote; color: root.secondary; wrap: word-wrap; font-size: 11px; }
+                HorizontalLayout { Text { text: "同步间隔"; color: root.secondary; width: 100px; vertical-alignment: center; } LineEdit { text <=> root.interval; placeholder-text: "15m，0s 表示仅手动"; } }
+                CheckBox { text: "文件改动后自动同步"; checked <=> root.on-change; }
+                ComboBox { model: ["两份都保留", "本地优先", "远端优先", "每次问我"]; current-index <=> root.policy-index; }
+                Text { text: "忽略规则 · 每行一条"; color: root.secondary; font-size: 11px; }
+                TextEdit { text <=> root.ignores; height: 110px; }
+                HorizontalLayout { Action { text: "保存规则"; primary: true; enabled: root.selected-id != ""; clicked => { root.save-rules(); } } Action { text: "打开文件夹"; clicked => { root.open-folder(); } } Action { text: "连接预览"; clicked => { root.plan(); } } }
+                Rectangle { height: 1px; background: root.line; }
+                Text { text: "覆盖会追加一个新版本，可从历史恢复。"; color: root.secondary; font-size: 11px; }
+                HorizontalLayout { Action { text: "本地覆盖远端"; enabled: !root.busy; clicked => { root.overwrite(true); } } Action { text: "远端覆盖本地"; enabled: !root.busy; clicked => { root.overwrite(false); } } }
+                HorizontalLayout { Action { text: "恢复中断现场"; enabled: !root.busy; clicked => { root.recover(); } } Action { text: "从 Tide 移除"; enabled: !root.busy; clicked => { root.confirm-remove = true; } } }
+                if root.confirm-remove: HorizontalLayout { Text { text: "保留文件和全部历史，仅停止同步。"; color: root.secondary; font-size: 11px; } Action { text: "确认移除"; clicked => { root.remove-folder(); root.confirm-remove = false; } } }
+                Rectangle { vertical-stretch: 1; }
+            } }
+            Text { text: root.remote; color: root.secondary; font-size: 10px; overflow: elide; }
+        }
+    }
+
+    if root.add-open || root.settings-open || root.about-open || root.diff-open || root.export-open: Rectangle {
+        background: #000000a0;
+        TouchArea { clicked => { } }
+        Rectangle {
+            x: (parent.width - self.width)/2; y: (parent.height - self.height)/2;
+            width: root.diff-open ? parent.width - 110px : 560px;
+            height: root.diff-open ? parent.height - 100px : root.about-open || root.export-open ? 350px : 530px;
+            background: root.light-theme ? #f7f9fa : #15191b; border-radius: 8px; border-width: 1px; border-color: root.line;
+            VerticalLayout {
+                padding: 26px; spacing: 16px;
+                HorizontalLayout {
+                    Text { text: root.add-open ? "添加同步文件夹" : root.settings-open ? "设置" : root.about-open ? "关于 Tide" : root.export-open ? "导出历史文件" : "版本差异"; color: root.fg; font-size: 20px; font-weight: 600; }
+                    Action { text: "关闭"; clicked => { root.add-open = false; root.settings-open = false; root.about-open = false; root.diff-open = false; root.export-open = false; } }
+                }
+                if root.add-open: VerticalLayout { spacing: 14px;
+                    LineEdit { text <=> root.add-name; placeholder-text: "名称，例如：读书笔记"; }
+                    HorizontalLayout { LineEdit { text <=> root.add-path; placeholder-text: "本地文件夹完整路径"; } Action { text: "选择…"; clicked => { root.browse-folder(); } } }
+                    LineEdit { text <=> root.add-remote; placeholder-text: "SSH / HTTPS Git 仓库地址"; }
+                    LineEdit { text <=> root.add-branch; placeholder-text: "分支，例如 main 或 tide/test"; }
+                    Text { text: "登记后先预览两端文件，再开始首次同步。令牌请通过系统 Git 凭据助手管理。"; color: root.secondary; font-size: 11px; wrap: word-wrap; }
+                    Text { text: root.add-error; color: #ed978c; font-size: 11px; wrap: word-wrap; }
+                    Rectangle { vertical-stretch: 1; }
+                    Action { text: "添加并预览"; primary: true; clicked => { root.add-folder(); } }
+                }
+                if root.settings-open: VerticalLayout { spacing: 14px;
+                    LineEdit { text <=> root.device-name; placeholder-text: "设备名"; }
+                    ComboBox { model: ["跟随系统", "浅色", "深色"]; current-index <=> root.theme-index; }
+                    CheckBox { text: "关闭窗口后留在托盘"; checked <=> root.close-to-tray; }
+                    CheckBox { text: "开机启动"; checked <=> root.autostart; }
+                    ComboBox { model: ["仅错误通知", "每次同步通知", "关闭通知"]; current-index <=> root.notification-index; }
+                    Text { text: "跨设备共享主题和通知偏好；导出到同步文件夹后，在另一台设备导入。"; color: root.secondary; wrap: word-wrap; font-size: 11px; }
+                    HorizontalLayout { Action { text: "导出偏好…"; clicked => { root.export-preferences(); } } Action { text: "导入偏好…"; clicked => { root.import-preferences(); } } }
+                    Text { text: root.add-error; color: #ed978c; wrap: word-wrap; font-size: 11px; }
+                    Rectangle { vertical-stretch: 1; }
+                    HorizontalLayout { Action { text: "配置文件"; clicked => { root.open-config(); } } Rectangle { horizontal-stretch: 1; } Action { text: "保存"; primary: true; clicked => { root.save-settings(); } } Action { text: "退出 Tide"; clicked => { root.quit(); } } }
+                }
+                if root.about-open: VerticalLayout { spacing: 20px;
+                    Text { text: "Tide 0.1 · Git 文档同步"; color: root.fg; font-size: 16px; }
+                    Text { text: "每个文件夹独立同步，历史持续保留。\nRust · libgit2 · Slint"; color: root.secondary; wrap: word-wrap; }
+                    AboutSlint { }
+                }
+                if root.diff-open: TextEdit { text <=> root.diff-text; read-only: true; }
+                if root.export-open: VerticalLayout {
+                    spacing: 14px;
+                    Text { text: "输入该版本中的文件相对路径，例如 笔记/书单.md。"; color: root.secondary; font-size: 12px; wrap: word-wrap; }
+                    LineEdit { text <=> root.export-path; placeholder-text: "文件相对路径"; }
+                    Rectangle { vertical-stretch: 1; }
+                    Action { text: "选择导出位置…"; primary: true; enabled: root.export-path != ""; clicked => { root.export-selected(); } }
+                }
+            }
+        }
+    }
+    }
+}

@@ -1,0 +1,21 @@
+[package]
+name = "tide-git"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Byte-preserving Git synchronization and recoverable working-tree writes"
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+git2.workspace = true
+fs2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+same-file = "1"
+
+[dev-dependencies]
+tempfile.workspace = true

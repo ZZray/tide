@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="200" viewBox="0 0 620 200">
+  <title>Tide — Git-powered document sync</title>
+  <g transform="translate(4 12) scale(.68)" fill="none">
+    <rect width="256" height="256" rx="56" fill="#101E25"/>
+    <path d="M52 103C78 75 103 75 128 101S178 128 204 101M52 155C78 127 103 127 128 153S178 180 204 153" stroke="#9BE0E7" stroke-width="22" stroke-linecap="round"/>
+  </g>
+  <text x="216" y="129" font-family="Segoe UI,Inter,Arial,sans-serif" font-size="108" font-weight="650" letter-spacing="-5" fill="#65B8C5">Tide</text>
+</svg>

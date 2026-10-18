@@ -1,0 +1,45 @@
+Upstream license declaration: simd_helpers 0.1.0
+Declared license: MIT
+Source commit: ca1a2f84aa386d758e98f8a609d990263932fb85
+
+This published commit supplies a MIT declaration and author attribution in Cargo.toml, but no standalone LICENSE or copyright notice. The original declaration and the full canonical SPDX MIT text are reproduced below. The placeholders in the standard text are retained; no copyright year or additional ownership claim is invented.
+
+===== https://raw.githubusercontent.com/lu-zero/simd_helpers/ca1a2f84aa386d758e98f8a609d990263932fb85/Cargo.toml =====
+[package]
+name = "simd_helpers"
+version = "0.1.0"
+authors = ["Luca Barbato <lu_zero@gentoo.org>"]
+edition = "2018"
+description = "Helpers to write more compact simd code"
+repository = "https://github.com/lu-zero/simd_helpers"
+readme = "README.md"
+keywords = ["proc_macro", "simd"]
+license = "MIT"
+
+[lib]
+proc-macro = true
+test = false
+
+[dependencies]
+quote = "1.0.2"
+
+
+===== https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt =====
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the
+following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial
+portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+USE OR OTHER DEALINGS IN THE SOFTWARE.

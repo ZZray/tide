@@ -1,0 +1,16 @@
+* text=auto
+*.rs text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+LICENSE text eol=lf
+Cargo.lock text eol=lf
+.gitattributes text eol=lf
+*.slint text eol=lf
+*.svg text eol=lf
+*.ps1 text eol=lf
+*.iss text eol=lf
+*.png binary
+*.ico binary

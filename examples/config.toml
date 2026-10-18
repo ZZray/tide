@@ -1,0 +1,29 @@
+# 路径和远端均为示例。init/add 可生成本机配置。
+[app]
+device_name = "办公室台式机"
+max_parallel = 2
+theme = "system" # system / light / dark
+close_to_tray = true
+autostart = false
+notify = "errors" # errors / every / off
+
+[[folder]]
+id = "f-notes"
+name = "读书笔记"
+path = 'D:\notes'
+# git_dir = 'E:\tide-history\notes.git' # 外置元数据，不能与任何同步文件夹重叠
+remote = "git@github.com:me/notes.git"
+branch = "main"
+mirrors = []
+# ssh_key = 'C:\Users\me\.ssh\id_ed25519' # 不展开 ~；不写令牌或密钥内容
+interval = "15m"
+on_change = true
+debounce = "30s"
+conflict = "keep_both" # prefer_local / prefer_remote / ask
+ignore = ["~$*", "*.tmp", ".~lock.*#", ".DS_Store", "Thumbs.db", "desktop.ini"]
+text_extensions = ["md", "txt", "org", "rst", "tex", "csv"]
+paused = false
+
+[folder.large_file]
+warn = 50000000
+reject = 100000000

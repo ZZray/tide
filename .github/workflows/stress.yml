@@ -1,0 +1,17 @@
+name: Synchronization stress test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  thousand-rounds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+      - run: cargo test -p tide-git --release --locked thousand_alternating_rounds_preserve_versions -- --nocapture
