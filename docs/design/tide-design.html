@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs'; mermaid.initialize({ startOnLoad: true });</script>
+<title>Tide 文档同步</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* 布局：单栏设计文档。正文限 70ch，表格、代码、界面样机可放宽到 1040px，各自在容器内横向滚动 */
+:root{
+  --bg:#F4F6F6; --surface:#FFFFFF; --fg:#15191C; --fg-2:#465057; --fg-3:#75808A; --line:#DCE2E4;
+  --accent:#1B6C76; --accent-soft:rgba(27,108,118,.09); --code:#EBF0F1;
+  --ok:#2C8659; --warn:#9C6608; --bad:#BC3A2E;
+  --sans:"IBM Plex Sans",-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei UI","Noto Sans SC",sans-serif;
+  --mono:"IBM Plex Mono","Cascadia Code",ui-monospace,Consolas,monospace;
+  --ui:-apple-system,"Segoe UI Variable Text","Segoe UI","PingFang SC","Microsoft YaHei UI",sans-serif;
+  /* 样机 = 应用自身的深色外观，固定，不随页面主题变化 */
+  --a-bg:#0B0D0E; --a-side:#0F1213; --a-raise:#16191B;
+  --a-layer:rgba(255,255,255,.03); --a-layer-2:rgba(255,255,255,.06); --a-line:rgba(255,255,255,.08); --a-line-soft:rgba(255,255,255,.05);
+  --a-t1:#F2F5F6; --a-t2:#C8D0D5; --a-t3:#87909A; --a-t4:#5C646C;
+  --a-accent:#4FB8C4; --a-btn:#E6E9EA; --a-btn-t:#0B0D0E;
+  --a-green:#4CB782; --a-amber:#E6B04A; --a-red:#EB5D5D; --a-grey:#6B737B; --a-danger:#C64545;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1012; --surface:#13181B; --fg:#E7ECEE; --fg-2:#B2BCC3; --fg-3:#7C8790; --line:#232B30;
+    --accent:#5DC0CA; --accent-soft:rgba(93,192,202,.11); --code:#11171A;
+    --ok:#5BC48D; --warn:#E2AE4A; --bad:#EE6F63; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1012; --surface:#13181B; --fg:#E7ECEE; --fg-2:#B2BCC3; --fg-3:#7C8790; --line:#232B30;
+  --accent:#5DC0CA; --accent-soft:rgba(93,192,202,.11); --code:#11171A;
+  --ok:#5BC48D; --warn:#E2AE4A; --bad:#EE6F63; color-scheme:dark;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.7}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:48px 112px}
+.prose{max-width:70ch}
+h1,h2,h3{text-wrap:balance;color:var(--fg)}
+h1{font-size:34px;font-weight:600;letter-spacing:-.01em;line-height:1.25;margin:8px 0 12px}
+h2{font-size:22px;font-weight:600;margin:64px 0 16px;padding-top:24px;border-top:1px solid var(--line)}
+h3{font-size:16px;font-weight:600;margin:32px 0 8px}
+p{margin:0 0 12px}
+a{color:var(--accent)}
+.eyebrow{font-family:var(--mono);font-size:12px;color:var(--fg-3)}
+.lede{font-size:17px;color:var(--fg-2);max-width:62ch}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--fg-3);margin-top:16px}
+.meta-row b{color:var(--fg-2);font-weight:500}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:28px 0 0;padding:0;list-style:none}
+.toc a{display:inline-block;font-size:13px;padding:3px 10px;border:1px solid var(--line);border-radius:999px;color:var(--fg-2);text-decoration:none;background:var(--surface)}
+.toc a:hover{border-color:var(--accent);color:var(--accent)}
+.toc a:focus-visible,.tab-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--code);padding:1px 5px;border-radius:4px}
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.6;background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;margin:12px 0 16px}
+pre code{background:none;padding:0;font-size:inherit}
+ul,ol{padding-left:1.3em;margin:0 0 12px}
+li{margin:3px 0}
+.tbl{overflow-x:auto;margin:12px 0 20px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.55}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-weight:600;color:var(--fg-2);font-size:12.5px;background:var(--accent-soft);white-space:nowrap}
+td.rec{color:var(--accent);font-weight:600;white-space:nowrap}
+.pill{display:inline-block;font-size:11.5px;padding:0 7px;border-radius:999px;border:1px solid var(--line);color:var(--fg-2);white-space:nowrap;line-height:1.7}
+.pill.ok{color:var(--ok);border-color:currentColor}
+.pill.warn{color:var(--warn);border-color:currentColor}
+.pill.bad{color:var(--bad);border-color:currentColor}
+.box{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:14px 16px;margin:12px 0 20px}
+.box .lbl{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:4px}
+.box p:last-child,.box ul:last-child{margin-bottom:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin:12px 0 20px}
+.grid2 > *{min-width:0}
+.cap{font-size:12.5px;color:var(--fg-3);margin:8px 0 28px}
+.stage{overflow-x:auto;padding:4px 2px 8px}
+pre.mermaid{background:var(--surface);text-align:center}
+
+/* ============ 界面样机（应用外观） ============ */
+.frame{font-family:var(--ui);font-size:13px;line-height:1.45;color:var(--a-t2);background:var(--a-bg);border-radius:10px;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 0 2px rgba(255,255,255,.05),0 24px 60px -24px rgba(0,0,0,.55)}
+.frame *{box-sizing:border-box}
+.titlebar{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 12px;background:var(--a-side);border-bottom:1px solid var(--a-line);font-size:12px;color:var(--a-t3)}
+.wc{display:flex;height:100%}
+.wc span{width:44px;display:grid;place-items:center;color:var(--a-t3)}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.i.sm{width:14px;height:14px}
+.app-body{display:grid;grid-template-columns:232px 1fr;height:572px}
+.side{background:var(--a-side);border-right:1px solid var(--a-line);display:flex;flex-direction:column;padding:10px 8px;gap:4px;min-width:0}
+.brand{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 8px 8px}
+.brand b{color:var(--a-t1);font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.search{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border:1px solid var(--a-line);background:var(--a-layer);border-radius:6px;color:var(--a-t4);font-size:12px;margin:0 0 8px}
+.search kbd{margin-left:auto}
+kbd{font-family:var(--ui);font-size:10.5px;height:18px;line-height:16px;padding:0 5px;border-radius:4px;background:var(--a-layer-2);border:1px solid var(--a-line);color:var(--a-t3)}
+.grp{font-size:11px;font-weight:600;color:var(--a-t4);padding:6px 8px 4px;display:flex;justify-content:space-between}
+.fitem{display:grid;grid-template-columns:16px 1fr;gap:10px;align-items:center;padding:7px 8px;border-radius:6px}
+.fitem.sel{background:var(--a-layer-2)}
+.fitem .nm{color:var(--a-t1);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fitem .sb{font-size:11.5px;color:var(--a-t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fitem .sb.warn{color:var(--a-amber)} .fitem .sb.bad{color:var(--a-red)}
+.side-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding:8px 4px 2px 8px;border-top:1px solid var(--a-line-soft)}
+.ghost{display:inline-flex;align-items:center;gap:6px;color:var(--a-t2);font-size:12.5px;height:28px;padding:0 8px;border-radius:6px}
+.mainp{display:flex;flex-direction:column;min-width:0;background:var(--a-bg)}
+.phead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:18px 20px 14px}
+.phead h4{margin:0;font-size:18px;font-weight:600;color:var(--a-t1);letter-spacing:-.01em}
+.path{font-family:var(--mono);font-size:11.5px;color:var(--a-t3);margin-top:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.path .arr{color:var(--a-t4)}
+.acts{display:flex;gap:6px;flex:none}
+.btn{height:28px;padding:0 11px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;border:1px solid var(--a-line);background:var(--a-layer);color:var(--a-t1);white-space:nowrap}
+.btn.primary{background:var(--a-btn);color:var(--a-btn-t);border-color:transparent;font-weight:500}
+.btn.icon{width:28px;padding:0;justify-content:center}
+.btn.danger{background:var(--a-danger);color:#fff;border-color:transparent;font-weight:500}
+.btn.text-danger{color:var(--a-red)}
+.statusbar{margin:0 20px;padding:11px 14px;border:1px solid var(--a-line);background:var(--a-layer);border-radius:8px;display:flex;gap:12px;align-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.statusbar .t1{color:var(--a-t1)} .statusbar .t3{color:var(--a-t3);font-size:12px}
+.statusbar .right{margin-left:auto;font-size:12px;color:var(--a-t3);font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:2px;padding:14px 20px 0;border-bottom:1px solid var(--a-line)}
+.tab{padding:5px 10px 9px;color:var(--a-t3);position:relative;display:flex;align-items:center;gap:6px}
+.tab.on{color:var(--a-t1)}
+.tab.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;background:var(--a-t1);border-radius:2px}
+.cnt{font-size:11px;color:var(--a-t2);background:var(--a-layer-2);border-radius:9px;padding:0 6px;font-variant-numeric:tabular-nums}
+.cnt.warn{color:var(--a-amber)}
+.rows{padding:8px 12px;flex:1;overflow:hidden}
+.row{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;height:36px;padding:0 8px;border-radius:6px}
+.row.hl{background:var(--a-layer)}
+.kind{font-size:11px;font-weight:600;text-align:center;border-radius:4px;line-height:18px}
+.k-add{color:var(--a-green);background:rgba(76,183,130,.12)}
+.k-mod{color:var(--a-amber);background:rgba(230,176,74,.12)}
+.k-del{color:var(--a-red);background:rgba(235,93,93,.12)}
+.k-lock{color:var(--a-t3);background:var(--a-layer-2)}
+.file{font-family:var(--mono);font-size:12px;color:var(--a-t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.file .dir{color:var(--a-t4)}
+.m{font-size:11.5px;color:var(--a-t3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.m .p{color:var(--a-green)} .m .n{color:var(--a-red)}
+.pfoot{height:34px;border-top:1px solid var(--a-line);display:flex;align-items:center;gap:18px;padding:0 20px;font-size:11.5px;color:var(--a-t3);font-variant-numeric:tabular-nums}
+.pfoot .sp{margin-left:auto}
+
+/* 历史 */
+.hist{width:760px}
+.htop{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--a-line)}
+.htop .search{margin:0;width:220px}
+.htop .sp{margin-left:auto}
+.day{font-size:11px;font-weight:600;color:var(--a-t4);padding:12px 16px 4px;display:flex;justify-content:space-between}
+.hrow{display:grid;grid-template-columns:44px 96px 1fr auto;gap:12px;align-items:center;height:38px;padding:0 16px;font-variant-numeric:tabular-nums}
+.hrow .tm{font-family:var(--mono);font-size:12px;color:var(--a-t3)}
+.dev{font-size:11.5px;color:var(--a-t2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.dev::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c,var(--a-accent))}
+.hrow .sum{color:var(--a-t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.hrow .sum span{color:var(--a-t3)}
+.hrow.open{background:var(--a-layer)}
+.hfiles{background:var(--a-layer);padding:2px 16px 10px 72px;border-bottom:1px solid var(--a-line-soft)}
+.hf{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;height:32px}
+.hf .links{display:flex;gap:4px}
+.lk{font-size:11.5px;color:var(--a-t2);padding:2px 7px;border-radius:5px;border:1px solid var(--a-line);background:var(--a-layer)}
+.diff{font-family:var(--mono);font-size:11.5px;line-height:1.7;background:#0E1112;border:1px solid var(--a-line);border-radius:6px;padding:6px 0;margin:4px 0 6px}
+.diff div{padding:0 10px;white-space:pre}
+.diff .a{background:rgba(76,183,130,.10);color:#9FDDBB}
+.diff .d{background:rgba(235,93,93,.10);color:#F2A7A7}
+.diff .c{color:var(--a-t4)}
+.merge{font-size:11.5px;color:var(--a-t4);padding:4px 16px 4px 72px}
+
+/* 向导、对话框 */
+.dlg{background:var(--a-raise);border-radius:12px;box-shadow:0 0 0 1px var(--a-line),0 24px 60px -16px rgba(0,0,0,.7)}
+.wiz{width:560px}
+.wiz-h{padding:18px 20px 0}
+.wiz-h h5,.cfm h5{margin:0;font-size:15px;color:var(--a-t1);font-weight:600}
+.steps{display:flex;gap:18px;margin:14px 0 0;padding:0 0 12px;border-bottom:1px solid var(--a-line);font-size:12px;color:var(--a-t4)}
+.steps span{display:flex;align-items:center;gap:6px}
+.steps i{font-style:normal;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;border:1px solid var(--a-line);font-variant-numeric:tabular-nums}
+.steps .done{color:var(--a-t3)} .steps .done i{background:var(--a-layer-2);color:var(--a-green)}
+.steps .cur{color:var(--a-t1)} .steps .cur i{background:var(--a-btn);color:var(--a-btn-t);border-color:transparent}
+.fields{padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.fl{display:flex;flex-direction:column;gap:6px}
+.fl > label{font-size:12px;color:var(--a-t3)}
+.inp{height:32px;border-radius:6px;border:1px solid var(--a-line);background:var(--a-layer);display:flex;align-items:center;padding:0 10px;font-family:var(--mono);font-size:12px;color:var(--a-t1);gap:8px}
+.inp.focus{border-color:rgba(79,184,196,.55);background:var(--a-layer-2);box-shadow:0 0 0 3px rgba(79,184,196,.16)}
+.inp .ph{color:var(--a-t4);font-family:var(--ui)}
+.inp .end{margin-left:auto;color:var(--a-t3);font-family:var(--ui);font-size:11.5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.seg{display:flex;padding:2px;border-radius:7px;background:var(--a-layer);border:1px solid var(--a-line);gap:2px}
+.seg span{flex:1;text-align:center;height:26px;line-height:26px;border-radius:5px;font-size:12px;color:var(--a-t3)}
+.seg span.on{background:var(--a-layer-2);color:var(--a-t1);box-shadow:0 0 0 1px var(--a-line)}
+.hint{font-size:11.5px;color:var(--a-t4)}
+.probe{display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(76,183,130,.28);background:rgba(76,183,130,.07);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--a-t2)}
+.probe b{color:var(--a-t1);font-weight:500}
+.dfoot{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--a-line)}
+.dfoot .l{margin-right:auto}
+.cfm{width:440px;padding:20px 20px 0}
+.cfm p{font-size:13px;color:var(--a-t2);margin:10px 0 0;line-height:1.6}
+.cfm .dfoot{margin:18px -20px 0}
+.cfm ul{margin:10px 0 0;padding:0;list-style:none;font-size:12.5px}
+.cfm li{display:flex;gap:8px;align-items:center;padding:3px 0;color:var(--a-t2)}
+.chk{width:14px;height:14px;border-radius:4px;border:1px solid var(--a-t4);flex:none}
+.wiz-row{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;padding:8px 2px}
+.wiz-row > div{flex:none}
+
+/* 托盘 */
+.tray-wrap{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;padding:8px 2px}
+.menu{width:252px;background:rgba(22,25,27,.94);border-radius:10px;padding:6px;font-family:var(--ui);font-size:13px;color:var(--a-t2);
+  box-shadow:0 0 0 1px var(--a-line),0 18px 44px -12px rgba(0,0,0,.7)}
+.mh{padding:8px 8px 10px;border-bottom:1px solid var(--a-line);margin-bottom:4px}
+.mh .t{color:var(--a-t1);display:flex;align-items:center;gap:8px}
+.mh .s{font-size:11.5px;color:var(--a-t3);margin-top:2px;padding-left:22px}
+.mi{display:flex;align-items:center;gap:10px;height:30px;padding:0 8px;border-radius:6px}
+.mi.hv{background:var(--a-layer-2);color:var(--a-t1)}
+.mi .r{margin-left:auto;color:var(--a-t4);font-size:12px}
+.sep{height:1px;background:var(--a-line);margin:4px 2px}
+.taskbar{background:#1A1E21;border-radius:10px;padding:14px 16px;display:grid;grid-template-columns:repeat(5,auto);gap:14px 22px;font-family:var(--ui);font-size:11.5px;color:var(--a-t3);box-shadow:0 0 0 1px var(--a-line)}
+.taskbar div{display:flex;flex-direction:column;align-items:center;gap:6px}
+.empty{width:520px;height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:24px}
+.empty h5{margin:6px 0 0;color:var(--a-t1);font-size:15px;font-weight:600}
+.empty p{margin:0;color:var(--a-t3);font-size:12.5px;max-width:34ch;line-height:1.6}
+@media (prefers-reduced-motion:no-preference){.spin{animation:spin 1.4s linear infinite;transform-origin:50% 50%}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-sync" viewBox="0 0 20 20"><path d="M15.5 8A6 6 0 0 0 4.7 6.2M4.5 3.5v3h3M4.5 12a6 6 0 0 0 10.8 1.8M15.5 16.5v-3h-3"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 20 20"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H8l1.5 1.5h6A1.5 1.5 0 0 1 17 8v6.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></symbol>
+    <symbol id="i-more" viewBox="0 0 20 20"><circle cx="5" cy="10" r=".9" fill="currentColor"/><circle cx="10" cy="10" r=".9" fill="currentColor"/><circle cx="15" cy="10" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-set" viewBox="0 0 20 20"><path d="M4 6.5h7.5M15 6.5h1M4 13.5h1.5M9 13.5h7"/><circle cx="13.2" cy="6.5" r="1.7"/><circle cx="7.3" cy="13.5" r="1.7"/></symbol>
+    <symbol id="i-search" viewBox="0 0 20 20"><circle cx="9" cy="9" r="4.8"/><path d="M12.6 12.6 16 16"/></symbol>
+    <symbol id="i-open" viewBox="0 0 20 20"><path d="M8.5 4.5H5.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M11.5 4.5h4v4M15.5 4.5l-6.5 6.5"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 20 20"><path d="M7.5 5v10M12.5 5v10"/></symbol>
+    <symbol id="i-check" viewBox="0 0 20 20"><path d="m5 10.5 3.2 3L15 6.5"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 9.5c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5 -1.2M3 15c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2"/></symbol>
+  </defs>
+</svg>
+
+<main class="wrap">
+  <div class="eyebrow">设计草案 · 只做设计，不含实现</div>
+  <h1>Tide：基于 Git 的轻量文档同步</h1>
+  <p class="lede">一个常驻托盘的小程序。你指定几个本地文件夹，它把每个文件夹接到一个 Git 远端上，定时或在改动后自动同步，所有版本都留在历史里，覆盖和回滚都能撤销。</p>
+  <div class="meta-row">
+    <span><b>日期</b> 2026-10-18</span>
+    <span><b>状态</b> 草案，待拍板</span>
+    <span><b>技术路线</b> Rust + Slint + libgit2（静态链接）</span>
+    <span><b>平台</b> Windows / macOS / Linux</span>
+    <span><b>名称</b> Tide 为暂定名</span>
+  </div>
+  <ul class="toc">
+    <li><a href="#goals">目标与边界</a></li>
+    <li><a href="#stack">技术选型</a></li>
+    <li><a href="#arch">架构</a></li>
+    <li><a href="#locations">文件夹与自定义位置</a></li>
+    <li><a href="#sync">同步算法</a></li>
+    <li><a href="#overwrite">覆盖与历史</a></li>
+    <li><a href="#states">状态与调度</a></li>
+    <li><a href="#ui">界面设计</a></li>
+    <li><a href="#errors">异常处理</a></li>
+    <li><a href="#verify">验证与里程碑</a></li>
+    <li><a href="#open">待拍板</a></li>
+  </ul>
+
+  <!-- ================= 目标 ================= -->
+  <h2 id="goals">目标与边界</h2>
+  <div class="grid2">
+    <div class="box">
+      <div class="lbl">要做</div>
+      <ul>
+        <li>多个同步文件夹，每个的本地位置、远端、分支、规则都可自定义</li>
+        <li>定时同步、改动后自动同步、立即同步（单个或全部）</li>
+        <li>增量：只扫改动文件，只传差异对象</li>
+        <li>历史：按时间和设备浏览，查看差异，恢复单个文件或整个文件夹</li>
+        <li>覆盖：本地覆盖远端、远端覆盖本地，均可撤销</li>
+        <li>同步文件夹的增删改查；托盘常驻；深色界面（跟随系统 / 浅 / 深）</li>
+      </ul>
+    </div>
+    <div class="box">
+      <div class="lbl">不做</div>
+      <ul>
+        <li>不做通用 Git 客户端：没有分支管理、暂存区、交互式 diff 编辑</li>
+        <li>不做实时协同编辑，不做移动端</li>
+        <li>不自建服务器，任何 Git 远端都行（GitHub、Gitee、自建 Gitea、NAS 上的裸仓库）</li>
+        <li>首版不支持 Git LFS（见<a href="#open">待拍板</a>）</li>
+      </ul>
+    </div>
+  </div>
+  <h3>资源目标</h3>
+  <p class="prose">下面是设计目标，还没有实测，里程碑 M4 用真实安装包测量后再定。</p>
+  <div class="tbl"><table>
+    <tr><th>指标</th><th>目标</th><th>靠什么达到</th></tr>
+    <tr><td>安装包</td><td>≤ 15 MB</td><td>单个可执行文件；libgit2 静态链接；不打包 WebView 和运行时；用系统字体</td></tr>
+    <tr><td>托盘常驻内存</td><td>≤ 30 MB</td><td>关窗口时销毁窗口组件，释放渲染资源，只留引擎；历史分页懒加载，不缓存文件内容</td></tr>
+    <tr><td>窗口打开时内存</td><td>≤ 80 MB</td><td>Slint 渲染器；列表虚拟化</td></tr>
+    <tr><td>空闲 CPU</td><td>≈ 0</td><td>不轮询：文件监听是系统事件，调度线程睡到下一个到期时间</td></tr>
+    <tr><td>无改动时一轮同步</td><td>本地检查 &lt; 1 秒（1 万个文件）</td><td>监听器标脏，只在脏或到期时跑 status；网络只做一次 fetch</td></tr>
+  </table></div>
+
+  <!-- ================= 选型 ================= -->
+  <h2 id="stack">技术选型</h2>
+  <h3>界面框架</h3>
+  <p class="prose">按“纯 Rust、占用小、看起来现代”三条筛。内存量级是同类应用的经验估计，不是本项目实测。</p>
+  <div class="tbl"><table>
+    <tr><th>方案</th><th>语言</th><th>常驻内存量级</th><th>观感</th><th>结论</th></tr>
+    <tr><td>Slint</td><td>Rust + <code>.slint</code> 声明式</td><td>低，十几到几十 MB</td><td>自带 Fluent 深色样式，可完全自绘</td><td class="rec">推荐</td></tr>
+    <tr><td>iced</td><td>纯 Rust，Elm 架构</td><td>中，wgpu 默认；可换软件渲染</td><td>现代，但组件要自己补</td><td>备选</td></tr>
+    <tr><td>egui</td><td>纯 Rust，即时模式</td><td>低</td><td>工具感强，难做精致</td><td>只适合调试面板</td></tr>
+    <tr><td>Tauri 2</td><td>Rust + Web 前端</td><td>高，多一个 WebView 进程</td><td>最灵活</td><td>不满足纯 Rust 和小占用</td></tr>
+    <tr><td>Avalonia（.NET NativeAOT）</td><td>C#</td><td>中高</td><td>Fluent 成熟</td><td>团队更想写 C# 时再考虑</td></tr>
+  </table></div>
+  <div class="box prose">
+    <div class="lbl">为什么是 Slint</div>
+    <p><code>.slint</code> 的写法和 QML 很像（属性绑定、组件、状态），Slint 团队也是 Qt 出身，你们团队上手成本最低。界面描述编译进二进制，不需要运行时解释。它的许可证对桌面应用有免版税条款，要求在“关于”里标注 Slint，正式开工前核对一次条款原文。</p>
+  </div>
+
+  <h3>Git 引擎</h3>
+  <div class="tbl"><table>
+    <tr><th>方案</th><th>情况</th><th>结论</th></tr>
+    <tr><td><code>git2</code>（libgit2，vendored 静态链接）</td><td>clone、fetch、push、合并、文件级三方合并、SSH 和 HTTPS 都成熟；用户机器上不需要装 Git</td><td class="rec">首版用它</td></tr>
+    <tr><td><code>gix</code>（gitoxide，纯 Rust）</td><td>读、status、fetch 很快；按我掌握的情况 push 还没完成。开工时再查一次进度</td><td>藏在接口后，push 成熟后可替换</td></tr>
+    <tr><td>调用系统 <code>git</code> 命令</td><td>兼容性最好（凭据助手、LFS），但依赖用户安装、要解析输出</td><td>只作为可选后端，用于 LFS 等场景</td></tr>
+  </table></div>
+  <p class="prose">诚实说明：libgit2 是 C 库，所以“纯 Rust”在 Git 这一层做不到 100%。它静态编进同一个可执行文件，用户感知不到。引擎通过 <code>GitBackend</code> 接口调用，以后换 gix 不动上层。</p>
+
+  <h3>其余依赖</h3>
+  <div class="tbl"><table>
+    <tr><th>用途</th><th>crate</th><th>说明</th></tr>
+    <tr><td>托盘与菜单</td><td><code>tray-icon</code> + <code>muda</code></td><td>Windows、macOS 跑在主线程；Linux 需要单独一个 GTK 线程跑托盘</td></tr>
+    <tr><td>文件监听</td><td><code>notify</code> + <code>notify-debouncer-full</code></td><td>系统事件驱动，防抖合并</td></tr>
+    <tr><td>凭据</td><td><code>keyring</code></td><td>令牌存系统钥匙串（Windows 凭据管理器、macOS 钥匙串、Secret Service），不写进配置文件</td></tr>
+    <tr><td>配置与目录</td><td><code>serde</code> + <code>toml</code>，<code>directories</code></td><td>人能直接读改的 <code>config.toml</code></td></tr>
+    <tr><td>日志</td><td><code>tracing</code> + <code>tracing-appender</code></td><td>按天滚动，保留 7 天，日志内容用英文</td></tr>
+    <tr><td>线程通信</td><td><code>crossbeam-channel</code></td><td>不引入 tokio：git2 本身是阻塞调用，线程模型更省内存</td></tr>
+    <tr><td>系统集成</td><td><code>auto-launch</code>、<code>notify-rust</code>、<code>rfd</code>、<code>single-instance</code></td><td>开机启动、系统通知、原生选文件夹对话框、单实例</td></tr>
+  </table></div>
+
+  <!-- ================= 架构 ================= -->
+  <h2 id="arch">架构</h2>
+  <div class="stage">
+<pre class="mermaid">
+flowchart LR
+  UI["界面 Slint<br/>主窗口 · 设置 · 向导"] -- 命令 --> ENG
+  ENG -- 状态事件 --> UI
+  TRAY["托盘<br/>tray-icon + muda"] -- 命令 --> ENG
+  WATCH["文件监听 notify<br/>防抖 30 秒"] --> SCHED
+  SCHED["调度器<br/>定时 · 改动 · 启动 · 退避"] --> ENG
+  ENG["同步引擎 tide-core<br/>每个文件夹一把锁<br/>全局最多 2 个并发"] --> GIT["GitBackend<br/>git2 静态链接"]
+  ENG --> STORE["config.toml<br/>runs.jsonl · 日志"]
+  ENG --> KEY["系统钥匙串"]
+  GIT --> REMOTE[("Git 远端<br/>GitHub · Gitee · Gitea · NAS")]
+</pre>
+  </div>
+  <div class="grid2">
+    <div class="box">
+      <div class="lbl">工程结构</div>
+<pre style="margin:6px 0 0">tide/
+  crates/
+    tide-core/   配置、同步引擎、调度、监听
+                 不依赖界面，可单独测试
+    tide-git/    GitBackend 接口 + git2 实现
+    tide-app/    Slint 界面、托盘、通知、
+                 开机启动、单实例
+  ui/            *.slint 界面文件与设计 token</pre>
+    </div>
+    <div class="box">
+      <div class="lbl">线程模型</div>
+      <ul>
+        <li><b>主线程</b>：Slint 事件循环；Windows、macOS 的托盘也在这里</li>
+        <li><b>调度线程</b>：维护每个文件夹的下次到期时间，睡到最近一个</li>
+        <li><b>同步工作线程 ×2</b>：执行同步，结果经通道回传，界面用 <code>invoke_from_event_loop</code> 刷新</li>
+        <li><b>监听线程</b>：notify 内部线程，只给文件夹标脏</li>
+        <li><b>Linux 托盘线程</b>：GTK 主循环</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= 位置 ================= -->
+  <h2 id="locations">文件夹与自定义位置</h2>
+  <p class="prose">“同步文件夹”是唯一的核心对象，界面上的增删改查都围绕它。数量不限，每个都可以单独设置下面这些。</p>
+  <div class="tbl"><table>
+    <tr><th>项</th><th>可选值</th><th>默认</th></tr>
+    <tr><td>本地位置</td><td>任意路径：其他盘符、移动硬盘、网络共享（网络共享会提示：别的电脑同时改可能出冲突）</td><td>用户选</td></tr>
+    <tr><td>历史数据位置</td><td>放文件夹里的 <code>.git</code>；或集中放到自定义目录，文件夹里不留任何隐藏目录</td><td>文件夹内，搬文件夹时历史跟着走</td></tr>
+    <tr><td>远端</td><td>SSH 或 HTTPS 地址；同一个远端仓库可以给多个本地文件夹用，各用一个分支</td><td>—</td></tr>
+    <tr><td>备份远端</td><td>零到多个，只推送不拉取，比如主用 GitHub、Gitee 做备份</td><td>无</td></tr>
+    <tr><td>认证</td><td>SSH 密钥 / 访问令牌 / 系统 Git 凭据助手</td><td>按地址自动猜</td></tr>
+    <tr><td>同步时机</td><td>每 5 / 15 / 30 / 60 分钟或自定义；改动后自动同步；启动时同步；只手动</td><td>每 15 分钟 + 改动后</td></tr>
+    <tr><td>冲突策略</td><td>两份都保留 / 本地优先 / 远端优先 / 每次问我</td><td>两份都保留</td></tr>
+    <tr><td>忽略规则</td><td>预设（Office 临时文件、系统文件）+ 自定义，写成 <code>.gitignore</code> 语法</td><td>预设开启</td></tr>
+    <tr><td>大文件</td><td>超过阈值提醒或不收录</td><td>50 MB 提醒，100 MB 不收录</td></tr>
+  </table></div>
+  <p class="prose">校验：同步文件夹不能互相嵌套；同一个本地路径不能加两次；同一远端同一分支被两个文件夹使用时给出提醒。</p>
+  <h3>配置文件样例</h3>
+<pre><code>[app]
+device_name   = "办公室台式机"    # 写进每次提交，历史里按设备显示
+theme         = "system"          # system | light | dark
+close_to_tray = true
+autostart     = true
+notify        = "errors"          # errors | every | off
+max_parallel  = 2
+
+[[folder]]
+id         = "f-7c2a"
+name       = "读书笔记"
+path       = 'D:\notes'
+git_dir    = ""                   # 空 = 文件夹内 .git；也可写 'E:\tide-history\notes.git'
+remote     = "git@github.com:me/notes.git"
+branch     = "main"
+mirrors    = ["git@gitee.com:me/notes.git"]   # 备份远端，只推送
+auth       = { kind = "ssh", key = '~/.ssh/id_ed25519' }  # 令牌类凭据只存在系统钥匙串
+interval   = "15m"
+on_change  = true
+debounce   = "30s"
+conflict   = "keep_both"          # keep_both | prefer_local | prefer_remote | ask
+ignore     = ["~$*", "*.tmp", ".~lock.*#", ".DS_Store", "Thumbs.db", "desktop.ini"]
+large_file = { warn = "50MB", reject = "100MB" }
+paused     = false</code></pre>
+  <p class="prose">程序给自己管理的仓库固定设置：<code>core.autocrlf=false</code>（文档按原样字节保存，不转换换行）、Windows 上 <code>core.longpaths=true</code>、macOS 上 <code>core.precomposeunicode=true</code>（避免中文文件名在 Mac 和 Windows 间变成两个文件）。</p>
+
+  <!-- ================= 同步 ================= -->
+  <h2 id="sync">同步算法</h2>
+  <p class="prose">对文档来说，最重要的是两件事：不丢任何一个版本，不往文档里写 <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> 冲突标记。所以不用 Git 的 rebase 或带冲突标记的 merge，而是按文件做三方对账，自己生成合并结果。</p>
+  <h3>一轮同步（单个文件夹，持有该文件夹的锁）</h3>
+  <ol class="prose">
+    <li><b>收集</b>：把工作区改动写入索引。只收修改时间已经稳定 2 秒的文件，避免收进写到一半的文档。有改动就提交本地快照 <code>L</code>，作者是设备名。</li>
+    <li><b>护栏</b>：文件夹根目录不存在，或者这次要删除超过 50 个且超过 30% 的文件，立刻暂停这个文件夹并提示，不往下走。移动硬盘没插好时就不会把远端清空。</li>
+    <li><b>拉取</b>：fetch 远端分支，得到 <code>R</code>。</li>
+    <li><b>对账</b>：<code>B = merge-base(L, R)</code>。<code>R = B</code> 时直接推送；<code>L = B</code> 时快进到 <code>R</code>；两边都有新内容时按下表逐个文件决定，生成合并提交 <code>M</code>（父提交是 <code>R</code> 和 <code>L</code>，两边的版本都留在历史里）。</li>
+    <li><b>写回</b>：只把内容变了的文件写回工作区，先写临时文件再改名。写之前核对哈希：如果用户这期间又改了这个文件，这一轮不覆盖它，下一轮重新对账。</li>
+    <li><b>推送</b>：push 到远端，再推备份远端。远端拒绝（别的设备刚推过）就回到第 3 步，最多重试 3 次。</li>
+    <li><b>收尾</b>：推送成功后才移动 <code>refs/tide/synced</code> 指针，写运行记录，刷新界面和托盘。中途断电或崩溃，下次启动从第 1 步重来即可，不需要修复。</li>
+  </ol>
+  <h3>逐文件对账表</h3>
+  <div class="tbl"><table>
+    <tr><th>本地（B→L）</th><th>远端（B→R）</th><th>结果</th></tr>
+    <tr><td>没变</td><td>增 / 改 / 删</td><td>用远端</td></tr>
+    <tr><td>增 / 改 / 删</td><td>没变</td><td>用本地</td></tr>
+    <tr><td colspan="2">两边改成了同样的内容</td><td>不算冲突</td></tr>
+    <tr><td>改（文本文件）</td><td>改（文本文件）</td><td>三方合并；改动不重叠就自动合好，重叠才按冲突策略处理</td></tr>
+    <tr><td>改（docx、pdf、图片等）</td><td>改</td><td>按冲突策略</td></tr>
+    <tr><td>删</td><td>改</td><td>保留改过的文件，不让删除吞掉内容</td></tr>
+    <tr><td>改</td><td>删</td><td>保留改过的文件</td></tr>
+    <tr><td colspan="2">两边各自新建了同名文件，内容不同</td><td>按冲突策略</td></tr>
+  </table></div>
+  <p class="prose">文本文件按扩展名白名单判断：<code>md txt org rst tex csv</code>，可在设置里加。</p>
+  <h3>冲突策略</h3>
+  <div class="tbl"><table>
+    <tr><th>策略</th><th>做法</th></tr>
+    <tr><td>两份都保留（默认）</td><td>原位置放远端版本（其他设备已经看到的那份），你的版本另存为 <code>书单 (冲突 · 笔记本 · 10-18 14.30).md</code>，同一个文件夹里，一眼能看到。通知一次</td></tr>
+    <tr><td>本地优先 / 远端优先</td><td>直接用一边；另一边的版本仍在历史里，可在“历史 → 被替换的版本”找回</td></tr>
+    <tr><td>每次问我</td><td>这个文件停在“冲突”页等你选，其余文件照常同步，不卡住整个文件夹</td></tr>
+  </table></div>
+
+  <h3>添加文件夹时的首次关联</h3>
+  <div class="tbl"><table>
+    <tr><th>本地</th><th>远端</th><th>首次同步</th></tr>
+    <tr><td>有文件，还不是仓库</td><td>空仓库</td><td>初始化并上传全部；先告诉你会上传多少个文件、多大</td></tr>
+    <tr><td>空文件夹</td><td>有内容</td><td>克隆到这里</td></tr>
+    <tr><td>有文件</td><td>有内容</td><td>按“两边都新增”对账，冲突一律两份都保留；先给预览，确认后才动</td></tr>
+    <tr><td>本来就是 Git 仓库</td><td>—</td><td>直接接管，读取已有的远端和分支，不改已有历史</td></tr>
+  </table></div>
+
+  <!-- ================= 覆盖 ================= -->
+  <h2 id="overwrite">覆盖与历史</h2>
+  <p class="prose">原则：所有覆盖和恢复都是往前追加一个新提交，从不改写历史，从不 force push。因此每个操作都能撤销，界面上用“撤销”代替层层确认，只有真正删数据的操作才要求二次确认。</p>
+  <div class="tbl"><table>
+    <tr><th>操作</th><th>实际做什么</th><th>怎么撤销</th></tr>
+    <tr><td>用本地覆盖远端</td><td>在远端最新提交之上提交一个“内容 = 本地”的新提交并推送。其他设备下次同步就变成这份</td><td>历史里恢复覆盖前那一刻</td></tr>
+    <tr><td>用远端覆盖本地</td><td>先把本地没同步的改动存成快照 <code>refs/tide/replaced/&lt;时间&gt;</code>，再把文件夹变成远端最新内容</td><td>历史 → 被替换的版本 → 恢复</td></tr>
+    <tr><td>恢复单个文件</td><td>把这个文件改回选中的版本，作为一次普通改动同步出去</td><td>再恢复一次</td></tr>
+    <tr><td>恢复整个文件夹到某一刻</td><td>新提交，内容 = 那一刻的完整文件树</td><td>同上</td></tr>
+    <tr><td>另存为</td><td>把某个版本的文件导出到你选的位置，不影响同步</td><td>—</td></tr>
+    <tr><td>移除同步文件夹</td><td>默认只从 Tide 里移除，文件和历史都留在原处；勾选后才删除历史数据（<code>.git</code> 或集中目录），文档本身永远不删</td><td>删除历史数据不可撤销，所以要二次确认</td></tr>
+  </table></div>
+  <p class="prose">历史列表按时间倒序、按天分组，每条显示时间、来自哪台设备、改了几个文件。自动生成的合并提交默认折叠成一行“合并了 笔记本 的改动”，只有发生过冲突的合并才展开显示。列表每次加载 50 条，滚到底再取下一页。</p>
+
+  <!-- ================= 状态 ================= -->
+  <h2 id="states">状态与调度</h2>
+  <div class="grid2">
+    <div>
+      <h3 style="margin-top:8px">文件夹状态</h3>
+      <div class="tbl"><table>
+        <tr><th>状态</th><th>含义</th></tr>
+        <tr><td><span class="pill ok">已同步</span></td><td>本地和远端一致</td></tr>
+        <tr><td><span class="pill warn">有改动</span></td><td>本地有改动，等下一轮</td></tr>
+        <tr><td><span class="pill">同步中</span></td><td>收集 → 拉取 → 对账 → 写回 → 推送，界面显示当前阶段</td></tr>
+        <tr><td><span class="pill warn">有冲突</span></td><td>“每次问我”策略下有文件待选</td></tr>
+        <tr><td><span class="pill">离线</span></td><td>连不上远端；改动安全存在本地</td></tr>
+        <tr><td><span class="pill bad">出错</span></td><td>认证失败、护栏触发、找不到文件夹等，需要处理</td></tr>
+        <tr><td><span class="pill">已暂停</span></td><td>用户暂停，或护栏自动暂停</td></tr>
+      </table></div>
+    </div>
+    <div>
+      <h3 style="margin-top:8px">托盘图标取最严重的一个</h3>
+      <p>出错 &gt; 有冲突 &gt; 同步中 &gt; 有改动 &gt; 离线 &gt; 已暂停 &gt; 已同步。图标只用角标颜色区分，具体原因写在悬停提示里，比如“读书笔记：GitHub 拒绝了访问令牌”。</p>
+      <h3>调度规则</h3>
+      <ul>
+        <li>每个文件夹有自己的下次到期时间；调度线程睡到最近一个</li>
+        <li>文件改动：防抖 30 秒后触发，连续改动会顺延，但最多顺延到 5 分钟</li>
+        <li>程序启动 10 秒后、电脑从睡眠唤醒后，各跑一轮</li>
+        <li>失败退避：1、2、4、8 分钟……最长 30 分钟；认证失败不自动重试，等你更新凭据</li>
+        <li>正在同步时再点“立即同步”：记一个“结束后再来一轮”，不重复排队</li>
+      </ul>
+    </div>
+  </div>
+  <h3>日志</h3>
+  <p class="prose">每轮同步一个 <code>run_id</code>，开始和结束成对记录，带耗时；失败记录阶段和原因。运行记录同时写入 <code>runs.jsonl</code>（保留最近 1000 轮），界面的“同步记录”就读它。</p>
+<pre><code>2026-10-18T14:30:01Z INFO  sync.start  folder=f-7c2a run=r-0192 trigger=change dirty=3
+2026-10-18T14:30:03Z INFO  sync.finish folder=f-7c2a run=r-0192 pushed=3 pulled=1 conflicts=0 elapsed_ms=1840
+2026-10-18T15:02:11Z WARN  sync.fail   folder=f-91b0 run=r-0193 phase=fetch error="authentication required" next_retry=none</code></pre>
+
+  <!-- ================= 界面 ================= -->
+  <h2 id="ui">界面设计</h2>
+  <p class="prose">视觉按 Linear 现行风格：近黑底、1px 发丝线、白色低透明叠层、彩色只出现在小状态图标上；强调色取一个偏海水的青色，呼应名字。动效按频率决定：键盘操作零动画，悬停只做 100ms 颜色变化，同步图标只在真的在传数据时转。浅色主题用同一套结构，换一组 token。</p>
+
+  <h3>主窗口：文件夹列表 + 详情</h3>
+  <div class="stage">
+    <div class="frame" style="width:980px">
+      <div class="titlebar"><span>Tide</span><div class="wc"><span>—</span><span>▢</span><span>✕</span></div></div>
+      <div class="app-body">
+        <aside class="side">
+          <div class="brand">
+            <b><svg class="i" style="color:var(--a-accent)"><use href="#i-wave"/></svg>Tide</b>
+            <span class="btn icon" title="全部同步"><svg class="i"><use href="#i-sync"/></svg></span>
+          </div>
+          <div class="search"><svg class="i sm"><use href="#i-search"/></svg>查找文件夹<kbd>Ctrl F</kbd></div>
+          <div class="grp"><span>文件夹</span><span>4</span></div>
+          <div class="fitem">
+            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="var(--a-green)"/><path d="m4.2 7.2 1.9 1.8L9.8 5.2" stroke="#0B0D0E" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div style="min-width:0"><div class="nm">剧本</div><div class="sb">2 分钟前已同步</div></div>
+          </div>
+          <div class="fitem sel">
+            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--a-amber)" stroke-width="1.5"/><path d="M7 1.5a5.5 5.5 0 0 1 0 11z" fill="var(--a-amber)"/></svg>
+            <div style="min-width:0"><div class="nm">读书笔记</div><div class="sb warn">3 处改动</div></div>
+          </div>
+          <div class="fitem">
+            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="var(--a-red)"/><path d="M7 3.8v3.7" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="7" cy="9.9" r=".9" fill="#fff"/></svg>
+            <div style="min-width:0"><div class="nm">合同扫描件</div><div class="sb bad">访问令牌已失效</div></div>
+          </div>
+          <div class="fitem">
+            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--a-grey)" stroke-width="1.5"/><path d="M5.6 4.8v4.4M8.4 4.8v4.4" stroke="var(--a-grey)" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <div style="min-width:0"><div class="nm">旧项目归档</div><div class="sb">已暂停</div></div>
+          </div>
+          <div class="side-foot">
+            <span class="ghost"><svg class="i"><use href="#i-plus"/></svg>添加文件夹</span>
+            <span class="btn icon" style="border-color:transparent;background:none" title="设置"><svg class="i"><use href="#i-set"/></svg></span>
+          </div>
+        </aside>
+        <section class="mainp">
+          <div class="phead">
+            <div style="min-width:0">
+              <h4>读书笔记</h4>
+              <div class="path">D:\notes <span class="arr">→</span> github.com/me/notes · main <span class="arr">+ 备份 gitee</span></div>
+            </div>
+            <div class="acts">
+              <span class="btn primary"><svg class="i"><use href="#i-sync"/></svg>立即同步</span>
+              <span class="btn"><svg class="i"><use href="#i-open"/></svg>打开文件夹</span>
+              <span class="btn icon"><svg class="i"><use href="#i-more"/></svg></span>
+            </div>
+          </div>
+          <div class="statusbar">
+            <svg width="16" height="16" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--a-amber)" stroke-width="1.5"/><path d="M7 1.5a5.5 5.5 0 0 1 0 11z" fill="var(--a-amber)"/></svg>
+            <div><div class="t1">3 处改动还没同步</div><div class="t3">14:45 自动同步，也可以现在就点“立即同步”</div></div>
+            <div class="right">上次 14:30 · 来自 笔记本</div>
+          </div>
+          <div class="tabs">
+            <span class="tab on">改动 <span class="cnt">3</span></span>
+            <span class="tab">历史</span>
+            <span class="tab">冲突 <span class="cnt">0</span></span>
+            <span class="tab">规则</span>
+            <span class="tab">同步记录</span>
+          </div>
+          <div class="rows">
+            <div class="row"><span class="kind k-add">新增</span><span class="file"><span class="dir">2026/10月/</span>读《置身事内》.md</span><span class="m">1.2 KB</span></div>
+            <div class="row hl"><span class="kind k-mod">修改</span><span class="file">书单.md</span><span class="m"><span class="p">+12</span> <span class="n">−3</span></span></div>
+            <div class="row"><span class="kind k-del">删除</span><span class="file"><span class="dir">草稿/</span>旧摘录.txt</span><span class="m">—</span></div>
+            <div class="row"><span class="kind k-lock">占用</span><span class="file"><span class="dir">附件/</span>读书会议程.docx</span><span class="m">Word 正在使用，关掉后下一轮同步</span></div>
+          </div>
+          <div class="pfoot"><span>本地 1,284 个文件 · 46.2 MB</span><span>历史 312 次同步</span><span class="sp">每 15 分钟 · 改动后 30 秒</span></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <p class="cap">左栏是文件夹列表，状态用“形状 + 颜色”双编码（勾、半圆、感叹号、暂停），灰度下也能分辨。右侧顶部一句话说清现在怎样、接下来会发生什么。被占用的文件单列一行，不让整轮失败。</p>
+
+  <h3>历史：按天、按设备</h3>
+  <div class="stage">
+    <div class="frame hist">
+      <div class="htop">
+        <span class="search"><svg class="i sm"><use href="#i-search"/></svg>按文件名查找</span>
+        <span class="btn">全部设备 ▾</span>
+        <span class="sp"></span>
+        <span class="btn">被替换的版本 <span class="cnt">1</span></span>
+        <span class="btn">恢复整个文件夹到…</span>
+      </div>
+      <div class="day"><span>今天 · 10 月 18 日</span><span>3 次</span></div>
+      <div class="hrow open"><span class="tm">14:30</span><span class="dev" style="--c:var(--a-accent)">笔记本</span><span class="sum">改了 2 个，新增 1 个 <span>· 书单.md 等</span></span><span class="m">▴</span></div>
+      <div class="hfiles">
+        <div class="hf"><span class="kind k-mod">修改</span><span class="file">书单.md</span><span class="links"><span class="lk">差异</span><span class="lk">恢复到此版本</span><span class="lk">另存为</span></span></div>
+        <div class="diff">
+          <div class="c">@@ 第 18 行 @@</div>
+          <div class="d">- 《置身事内》 想读</div>
+          <div class="a">+ 《置身事内》 在读，第 4 章</div>
+          <div class="a">+ 《繁花》 想读</div>
+        </div>
+        <div class="hf"><span class="kind k-mod">修改</span><span class="file">摘抄/经济.md</span><span class="links"><span class="lk">差异</span><span class="lk">恢复到此版本</span><span class="lk">另存为</span></span></div>
+        <div class="hf"><span class="kind k-add">新增</span><span class="file">2026/10月/读《置身事内》.md</span><span class="links"><span class="lk">打开</span><span class="lk">另存为</span></span></div>
+      </div>
+      <div class="merge">合并了 办公室台式机 的改动 · 14:30</div>
+      <div class="hrow"><span class="tm">11:02</span><span class="dev" style="--c:#B79CF0">办公室台式机</span><span class="sum">改了 1 个 <span>· 摘抄/经济.md</span></span><span class="m">▾</span></div>
+      <div class="hrow"><span class="tm">09:15</span><span class="dev" style="--c:var(--a-accent)">笔记本</span><span class="sum">删除 1 个 <span>· 草稿/旧摘录.txt</span></span><span class="m">▾</span></div>
+      <div class="day"><span>昨天 · 10 月 17 日</span><span>5 次</span></div>
+      <div class="hrow"><span class="tm">22:40</span><span class="dev" style="--c:var(--a-accent)">笔记本</span><span class="sum">冲突已处理：两份都保留 <span>· 书单.md</span></span><span class="m">▾</span></div>
+    </div>
+  </div>
+  <p class="cap">每台设备一个固定色点，一眼看出是哪台电脑改的。文本文件直接给行级差异；docx、pdf 只显示大小和修改时间，提供“另存为”到本地对比。</p>
+
+  <h3>添加文件夹向导 · 移除确认</h3>
+  <div class="stage">
+    <div class="wiz-row">
+      <div class="dlg wiz frame" style="background:var(--a-raise)">
+        <div class="wiz-h">
+          <h5>添加同步文件夹</h5>
+          <div class="steps">
+            <span class="done"><i>✓</i>本地文件夹</span>
+            <span class="cur"><i>2</i>远端仓库</span>
+            <span><i>3</i>同步规则</span>
+          </div>
+        </div>
+        <div class="fields">
+          <div class="fl"><label>远端地址</label><div class="inp focus">git@github.com:me/notes.git</div></div>
+          <div class="two">
+            <div class="fl"><label>分支</label><div class="inp">main<span class="end">远端已有</span></div></div>
+            <div class="fl"><label>备份远端（可选，只推送）</label><div class="inp"><span class="ph">再加一个地址</span></div></div>
+          </div>
+          <div class="fl"><label>认证方式</label>
+            <div class="seg"><span class="on">SSH 密钥</span><span>访问令牌</span><span>系统 Git 凭据</span></div>
+          </div>
+          <div class="fl"><div class="inp">~/.ssh/id_ed25519<span class="end">更换…</span></div><div class="hint">令牌会存进系统钥匙串，不写进配置文件。</div></div>
+          <div class="probe">
+            <svg width="16" height="16" viewBox="0 0 14 14" style="flex:none;margin-top:2px"><circle cx="7" cy="7" r="6" fill="var(--a-green)"/><path d="m4.2 7.2 1.9 1.8L9.8 5.2" stroke="#0B0D0E" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div><b>连接成功，远端 main 分支有 42 个文件。</b><br>本地 D:\notes 也有 128 个文件，其中 3 个同名不同内容。首次同步会两份都保留，下一步可以先看清单。</div>
+          </div>
+        </div>
+        <div class="dfoot"><span class="btn l">测试连接</span><span class="btn">上一步</span><span class="btn primary">下一步：同步规则</span></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:28px">
+        <div class="dlg cfm frame" style="background:var(--a-raise)">
+          <h5>用远端版本替换本地？</h5>
+          <p>“读书笔记”有 3 处改动还没同步。替换后，D:\notes 会变成远端 14:30 的内容。</p>
+          <p>替换前会先把这 3 处改动存成一份快照，可以在“历史 → 被替换的版本”里恢复。</p>
+          <div class="dfoot"><span class="btn">取消</span><span class="btn primary">用远端替换本地</span></div>
+        </div>
+        <div class="dlg cfm frame" style="background:var(--a-raise)">
+          <h5>从 Tide 移除“旧项目归档”？</h5>
+          <p>文件夹里的文件和同步历史都留在原处，只是不再自动同步，以后可以重新添加。</p>
+          <ul><li><span class="chk"></span>同时删除这个文件夹的同步历史（312 次，不可恢复，文档本身不会删）</li></ul>
+          <div class="dfoot"><span class="btn">取消</span><span class="btn danger">移除</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="cap">第 2 步“测试连接”顺便探测远端和本地的实际情况，把首次同步会发生什么提前说清楚。可撤销的“替换”用普通主按钮；只有勾选了删除历史时，移除才变成不可逆操作，按钮用红色。</p>
+
+  <h3>护栏触发 · 空状态</h3>
+  <div class="stage">
+    <div class="wiz-row">
+      <div class="dlg cfm frame" style="background:var(--a-raise)">
+        <h5>“合同扫描件”这次要删掉 412 个文件</h5>
+        <p>占这个文件夹的 87%，可能是移动硬盘没插好，或者文件夹被搬走了。已经暂停这个文件夹的同步，远端没有任何变化。</p>
+        <div class="dfoot"><span class="btn l">查看清单</span><span class="btn">保持暂停</span><span class="btn text-danger">确认删除并同步</span></div>
+      </div>
+      <div class="frame empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" style="color:var(--a-accent)" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M3 9.5c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2M3 15c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2"/></svg>
+        <h5>还没有要同步的文件夹</h5>
+        <p>选一个文件夹，再给它配一个 Git 远端就行。GitHub、Gitee、自建 Gitea、NAS 上的仓库都可以。</p>
+        <span class="btn primary" style="margin-top:6px"><svg class="i"><use href="#i-plus"/></svg>添加第一个文件夹</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>托盘</h3>
+  <div class="stage">
+    <div class="tray-wrap">
+      <div class="menu">
+        <div class="mh">
+          <div class="t"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--a-amber)" stroke-width="1.5"/><path d="M7 1.5a5.5 5.5 0 0 1 0 11z" fill="var(--a-amber)"/></svg>读书笔记有 3 处改动</div>
+          <div class="s">其他 2 个已同步 · 1 个已暂停</div>
+        </div>
+        <div class="mi hv"><svg class="i"><use href="#i-sync"/></svg>立即同步全部</div>
+        <div class="mi"><svg class="i"><use href="#i-folder"/></svg>文件夹<span class="r">›</span></div>
+        <div class="mi"><svg class="i"><use href="#i-pause"/></svg>暂停同步<span class="r">›</span></div>
+        <div class="sep"></div>
+        <div class="mi"><svg class="i"><use href="#i-open"/></svg>打开 Tide</div>
+        <div class="mi"><svg class="i"><use href="#i-set"/></svg>设置</div>
+        <div class="sep"></div>
+        <div class="mi">退出</div>
+      </div>
+      <div class="taskbar">
+        <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E6E9EA" stroke-width="1.6" stroke-linecap="round"><path d="M3 9.5c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2M3 15c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2"/></svg>已同步</div>
+        <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E6E9EA" stroke-width="1.6" stroke-linecap="round"><path d="M3 9.5c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2M3 15c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2"/><circle cx="19" cy="19" r="4" fill="#4FB8C4" stroke="#1A1E21" stroke-width="1.5"/></svg>同步中</div>
+        <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E6E9EA" stroke-width="1.6" stroke-linecap="round"><path d="M3 9.5c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2M3 15c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2"/><circle cx="19" cy="19" r="4" fill="#E6B04A" stroke="#1A1E21" stroke-width="1.5"/></svg>改动 / 冲突</div>
+        <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E6E9EA" stroke-width="1.6" stroke-linecap="round"><path d="M3 9.5c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2M3 15c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2"/><circle cx="19" cy="19" r="4" fill="#EB5D5D" stroke="#1A1E21" stroke-width="1.5"/></svg>出错</div>
+        <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E6E9EA" stroke-opacity=".4" stroke-width="1.6" stroke-linecap="round"><path d="M3 9.5c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2M3 15c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 5-1.2"/></svg>暂停 / 离线</div>
+      </div>
+    </div>
+  </div>
+  <p class="cap">左键托盘图标打开主窗口，右键出菜单。菜单第一行就是当前状态，不用打开窗口也知道要不要管。“暂停同步”子菜单：30 分钟、1 小时、直到我恢复。macOS 上图标用单色模板图，跟随菜单栏明暗。</p>
+
+  <h3>其他页面（文字说明）</h3>
+  <div class="tbl"><table>
+    <tr><th>页面</th><th>内容</th></tr>
+    <tr><td>规则（文件夹内）</td><td>同步时机、防抖时间、冲突策略、忽略规则（预设开关 + 文本框）、大文件阈值、备份远端、历史数据位置（可迁移）</td></tr>
+    <tr><td>冲突（文件夹内）</td><td>只在“每次问我”策略下有内容。每个文件三个按钮：保留本地、保留远端、两份都保留；文本文件给并排差异</td></tr>
+    <tr><td>同步记录（文件夹内）</td><td>最近的同步轮次：时间、触发原因（定时 / 改动 / 手动）、上传下载数、耗时、失败原因，可复制给别人排查</td></tr>
+    <tr><td>全局设置</td><td>外观（跟随系统 / 浅色 / 深色）、开机启动、关窗口时留在托盘、通知（只在出错时 / 每次 / 关闭）、设备名、凭据管理（增删改）、并发数、打开日志目录、关于</td></tr>
+  </table></div>
+
+  <h3>键盘</h3>
+  <div class="tbl"><table>
+    <tr><th>按键</th><th>动作</th></tr>
+    <tr><td><kbd style="background:var(--code);color:var(--fg-2);border-color:var(--line)">Ctrl R</kbd></td><td>立即同步当前文件夹</td></tr>
+    <tr><td><kbd style="background:var(--code);color:var(--fg-2);border-color:var(--line)">Ctrl Shift R</kbd></td><td>立即同步全部</td></tr>
+    <tr><td><kbd style="background:var(--code);color:var(--fg-2);border-color:var(--line)">Ctrl N</kbd></td><td>添加文件夹</td></tr>
+    <tr><td><kbd style="background:var(--code);color:var(--fg-2);border-color:var(--line)">↑ ↓</kbd> / <kbd style="background:var(--code);color:var(--fg-2);border-color:var(--line)">Ctrl 1–5</kbd></td><td>切换文件夹 / 切换标签页</td></tr>
+    <tr><td><kbd style="background:var(--code);color:var(--fg-2);border-color:var(--line)">Ctrl F</kbd></td><td>查找文件夹；在历史页里查找文件</td></tr>
+    <tr><td><kbd style="background:var(--code);color:var(--fg-2);border-color:var(--line)">Esc</kbd></td><td>关闭对话框；主窗口按 Esc 收回托盘</td></tr>
+  </table></div>
+  <p class="prose">macOS 上 Ctrl 换成 Cmd。</p>
+
+  <h3>文案</h3>
+  <p class="prose">语气平实，说清现在怎样、接下来会怎样、用户要不要做什么。出错时写原因和出路，不卖萌。</p>
+  <div class="tbl"><table>
+    <tr><th>场景</th><th>文案</th></tr>
+    <tr><td>托盘悬停（一切正常）</td><td>全部同步好了 · 14:30</td></tr>
+    <tr><td>离线</td><td>现在连不上 github.com。改动都存在本地，联网后会自动补上。</td></tr>
+    <tr><td>认证失败</td><td>GitHub 拒绝了访问令牌，可能已经过期。更新凭据后会马上重试。</td></tr>
+    <tr><td>冲突（两份都保留）</td><td>书单.md 在两台电脑上都改过。两份都留下了：远端版本在原位，你这台的在“书单 (冲突 · 笔记本 · 10-18 14.30).md”。</td></tr>
+    <tr><td>文件被占用</td><td>读书会议程.docx 正在被 Word 使用，关掉后下一轮会同步。</td></tr>
+    <tr><td>找不到文件夹</td><td>找不到 E:\合同扫描件，可能是移动硬盘没插。已暂停，插上后点“继续同步”。</td></tr>
+    <tr><td>首次同步完成（只出现一次）</td><td>第一次同步完成，128 个文件已经在远端了。之后的改动会自己跟上。</td></tr>
+  </table></div>
+  <div class="box prose">
+    <div class="lbl">巧思落在哪</div>
+    <ul>
+      <li>历史和冲突副本都带设备名，多台电脑来回改时，一眼知道“这是哪台改的”。</li>
+      <li>状态栏写“14:45 自动同步”而不是只写“有改动”，用户不必猜要不要手动点。</li>
+      <li>离线时强调“改动都在本地”，让人放心合上笔记本。</li>
+      <li>护栏弹窗先说“远端没有任何变化”，再说可能原因，用户最担心的事放在第一句。</li>
+      <li>只有首次同步完成有一句温和的完成提示；之后每次成功都保持安静，不打扰。</li>
+    </ul>
+  </div>
+
+  <!-- ================= 异常 ================= -->
+  <h2 id="errors">异常处理</h2>
+  <div class="tbl"><table>
+    <tr><th>情况</th><th>处理</th><th>用户看到</th></tr>
+    <tr><td>网络不通、超时</td><td>进入“离线”，按退避重试；离线是笔记本的常态，不弹通知</td><td>托盘灰色，悬停写原因</td></tr>
+    <tr><td>认证失败</td><td>停止自动重试，等用户更新凭据</td><td>通知一次 +“更新凭据”按钮</td></tr>
+    <tr><td>推送被拒（别的设备刚推过）</td><td>重新拉取、对账、推送，最多 3 次</td><td>3 次都失败才提示“远端改动太频繁，稍后再试”</td></tr>
+    <tr><td>远端仓库或分支不存在</td><td>出错并暂停</td><td>引导重新填远端，或在远端新建分支</td></tr>
+    <tr><td>文件被占用（Windows 共享冲突）</td><td>跳过这个文件，其余照常</td><td>改动列表里标“占用”</td></tr>
+    <tr><td>文件正在写入</td><td>修改时间稳定 2 秒才收录</td><td>无感</td></tr>
+    <tr><td>本地文件夹不见了</td><td>暂停，绝不当作“全部删除”</td><td>“找不到文件夹”+ 继续同步按钮</td></tr>
+    <tr><td>大量删除</td><td>护栏暂停（&gt; 50 个且 &gt; 30%）</td><td>护栏弹窗</td></tr>
+    <tr><td>大文件</td><td>超提醒阈值提示；超上限不收录，写进忽略清单</td><td>改动列表标“太大，未同步”</td></tr>
+    <tr><td>磁盘满</td><td>写回前检查剩余空间，不够就不写</td><td>出错，写明需要多少空间</td></tr>
+    <tr><td>用户自己也在用 git 命令行</td><td>发现 <code>index.lock</code> 就跳过这一轮；超过 10 分钟仍在且没有 git 进程，提示清理</td><td>同步记录里写明跳过原因</td></tr>
+    <tr><td>同步中途崩溃或断电</td><td>同步指针只在推送成功后移动，重启后重新对账</td><td>无感</td></tr>
+    <tr><td>第二次启动程序</td><td>单实例，唤起已运行的窗口</td><td>窗口出现在前面</td></tr>
+  </table></div>
+
+  <!-- ================= 验证 ================= -->
+  <h2 id="verify">验证与里程碑</h2>
+  <h3>怎么测</h3>
+  <ul class="prose">
+    <li><b>引擎集成测试</b>：临时目录里建一个裸仓库当远端，克隆出 A、B 两个工作区当两台设备，用真实 Git 跑，不用 mock。覆盖对账表每一行、三种冲突策略、冲突副本命名、护栏、文件夹消失、推送被拒重试、崩溃后重新对账。</li>
+    <li><b>监听与调度</b>：防抖、顺延上限、退避、休眠唤醒补跑，用可注入的时钟测。</li>
+    <li><b>界面</b>：Slint 测试后端测视图模型与状态映射；交互和视觉人工走查，亮暗两套都看。</li>
+    <li><b>真实远端</b>：GitHub、Gitee 的 SSH 和 HTTPS，用环境变量 <code>REAL_REMOTE=1</code> 打开，默认 CI 跳过。</li>
+    <li><b>资源</b>：托盘常驻 10 分钟后量工作集和私有内存，三个平台各测一次，结果回填上面的资源目标表。</li>
+  </ul>
+  <h3>里程碑</h3>
+  <div class="tbl"><table>
+    <tr><th>阶段</th><th>交付</th><th>完成标准</th></tr>
+    <tr><td>M1 引擎</td><td>tide-core、tide-git，开发用命令行入口</td><td>对账表全部用例通过；两个工作区来回改 1000 轮不丢版本</td></tr>
+    <tr><td>M2 外壳</td><td>主窗口、托盘、添加向导、全局设置、深色</td><td>不开窗口也能靠托盘完成日常使用</td></tr>
+    <tr><td>M3 历史与覆盖</td><td>历史、差异、恢复、覆盖、冲突页</td><td>所有覆盖操作都能在历史里撤销</td></tr>
+    <tr><td>M4 打包</td><td>Windows 安装包（代码签名）、macOS dmg（公证）、Linux AppImage / deb；开机启动</td><td>资源实测达标，或给出差距和原因</td></tr>
+  </table></div>
+
+  <!-- ================= 待定 ================= -->
+  <h2 id="open">待拍板</h2>
+  <ol class="prose">
+    <li><b>要不要支持 Git LFS</b>：如果同步的文档里大 PDF、扫描件多，仓库会膨胀得很快。libgit2 不支持 LFS，要支持就得为这类文件夹切到“系统 git”后端。</li>
+    <li><b>冲突默认策略</b>：建议“两份都保留”，最安全，代价是偶尔多一个副本文件要手动删。</li>
+    <li><b>Linux 是否首发</b>：Linux 托盘依赖桌面环境（GNOME 需要扩展才显示托盘），可以放到 M4 之后。</li>
+    <li><b>名字</b>：Tide 是暂定名。</li>
+  </ol>
+</main>
+
+</html>
