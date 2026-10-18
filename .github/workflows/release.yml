@@ -30,7 +30,10 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
+          # Reuse the Windows CI job's dependency cache.
+          shared-key: test
           cache-directories: ${{ runner.temp }}/cargo-build
+          cache-on-failure: true
       - name: Validate release tag
         if: github.ref_type == 'tag'
         shell: pwsh
@@ -70,7 +73,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Publish preview release from verified cloud build
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -52,6 +52,16 @@ fn fixture() -> (
 
 #[test]
 fn command_line_lifecycle_and_error_exit_codes() {
+    let version = Command::new(env!("CARGO_BIN_EXE_tide"))
+        .arg("--version")
+        .output()
+        .unwrap();
+    assert!(version.status.success());
+    assert_eq!(
+        String::from_utf8(version.stdout).unwrap().trim(),
+        format!("tide {}", env!("CARGO_PKG_VERSION"))
+    );
+    assert!(version.stderr.is_empty());
     let (_temp, config, docs, _remote) = fixture();
     assert!(!tide(&config, &["init"]).status.success());
     fs::write(docs.join("note.md"), b"hello\n").unwrap();

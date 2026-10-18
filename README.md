@@ -74,7 +74,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo build -p tide-app --release --no-default-features --locked
 ```
 
-[Development and packaging](docs/development.md) · [Contributing](CONTRIBUTING.md) · [Original design](docs/specs/2026-10-18_Tide设计.md) · [Implementation evidence and limits](docs/implementation/M2.md).
+[Development and packaging](docs/development.md) · [Contributing](CONTRIBUTING.md) · [Original design](docs/specs/2026-10-18_Tide设计.md) · [Implementation evidence and limits](docs/implementation/M2.md) · [Cloud release evidence](docs/implementation/M3.md).
 
 ## Current limits
 

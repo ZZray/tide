@@ -22,7 +22,9 @@ $stderr = $versionProcess.StandardError.ReadToEndAsync()
 $versionProcess.WaitForExit()
 $version = $stdout.GetAwaiter().GetResult().Trim()
 $errors = $stderr.GetAwaiter().GetResult()
-if ($versionProcess.ExitCode -ne 0 -or $version -notmatch '^tide 0\.' -or $errors) { throw 'Installed CLI version check failed.' }
+if ($versionProcess.ExitCode -ne 0 -or $version -notmatch '^tide 0\.' -or $errors) {
+    throw "Installed CLI version check failed: exit=$($versionProcess.ExitCode), stdout=[$version], stderr=[$errors]"
+}
 $versionProcess.Dispose()
 $uninstaller = Join-Path $installation 'unins000.exe'
 $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -Wait

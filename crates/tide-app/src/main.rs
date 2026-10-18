@@ -11,7 +11,7 @@ use tide_core::{Config, Folder};
 use tide_git::GitBackend;
 
 #[derive(Parser)]
-#[command(version, about = "Tide — Git 文档同步")]
+#[command(name = "tide", version, about = "Tide — Git 文档同步")]
 struct Cli {
     /// Config file; defaults to the current user's application config directory.
     #[arg(long, global = true)]

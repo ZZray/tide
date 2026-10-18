@@ -74,7 +74,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo build -p tide-app --release --no-default-features --locked
 ```
 
-[开发、缓存和打包](docs/development.md) · [贡献说明](CONTRIBUTING.md) · [原始设计](docs/specs/2026-10-18_Tide设计.md) · [实现证据与限制](docs/implementation/M2.md)。
+[开发、缓存和打包](docs/development.md) · [贡献说明](CONTRIBUTING.md) · [原始设计](docs/specs/2026-10-18_Tide设计.md) · [实现证据与限制](docs/implementation/M2.md) · [云端发布记录](docs/implementation/M3.md)。
 
 ## 当前限制
 
