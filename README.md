@@ -4,14 +4,14 @@
 
 Tide is a lightweight desktop and command-line tool that connects each local folder to a Git remote. It synchronizes changes, preserves both versions of conflicting documents, and keeps recoverable history. No Tide account or proprietary synchronization server is required.
 
-**Status: v0.1.0 preview.** Windows x64 is the packaged desktop platform. The desktop interface is currently Chinese; this documentation and CLI help are available in English. Linux and macOS are source/CI targets, with no installer or tray support promised in this preview.
+**Status: v0.1.1 preview.** Windows x64 is the packaged desktop platform. The desktop interface is currently Chinese; this documentation and CLI help are available in English. Linux and macOS are source/CI targets, with no installer or tray support promised in this preview.
 
 ## Download and install
 
 Get the cloud-built files from [GitHub Releases](https://github.com/ZZray/tide/releases):
 
-- `Tide-v0.1.0-windows-x64-setup.exe`: per-user installer, Start menu shortcut and uninstaller; administrator rights are not required.
-- `Tide-v0.1.0-windows-x64-portable.zip`: extract the entire folder and run `tide.exe`.
+- `Tide-v0.1.1-windows-x64-setup.exe`: per-user installer, Start menu shortcut and uninstaller; administrator rights are not required. Installed copies update themselves.
+- `Tide-v0.1.1-windows-x64-portable.zip`: extract the entire folder and run `tide.exe`.
 - `SHA256SUMS.txt`: SHA-256 checksums for both packages.
 
 Preview packages are unsigned. Uninstalling the application preserves your documents, Git history and user configuration. Even the portable build stores configuration in the OS user configuration directory unless you pass `--config`.
@@ -26,6 +26,12 @@ Preview packages are unsigned. Uninstalling the application preserves your docum
 Each folder is independent. The default conflict policy keeps the remote version at the original path and writes a separate local conflict copy. Restore/overwrite operations add commits; Tide never force-pushes or rebases your document history.
 
 For HTTPS, configure a system Git credential helper. SSH supports an agent or an explicit key path. Tokens are not stored in Tide configuration; embedded credentials in HTTPS URLs are rejected. Tide uses libgit2 for Git I/O; an external credential helper may require system Git.
+
+## Updates
+
+Installed copies check [GitHub Releases](https://github.com/ZZray/tide/releases) about a minute after start and then daily. A newer installer is downloaded in the background and verified against the release's `SHA256SUMS.txt`; nothing is installed until you choose **重启以更新** (Restart to update) in the sidebar, the About dialog or the tray menu. A running sync finishes first, setup runs silently, and Tide starts again. Disable the daily check in Settings; About always offers a manual check. Portable copies only report the new version and link to its release page.
+
+The check reads the public release feed (not the rate-limited REST API) through the proxy set in `HTTPS_PROXY`/`HTTP_PROXY` or Windows system settings. `%LOCALAPPDATA%\Tide\Tide\cache\updates\update.log` records each check, download and install.
 
 ## Portable preferences
 
@@ -46,6 +52,8 @@ tide sync notes
 tide preferences export 'D:\notes\.tide\preferences.toml'
 tide preferences inspect 'D:\notes\.tide\preferences.toml'
 tide preferences import 'D:\notes\.tide\preferences.toml'
+tide update check
+tide update install
 ```
 
 Run `tide --help` for pause/resume, export, conflict resolution and recoverable overwrite commands. Starting without a command opens the desktop. `--config <path>` selects a configuration file. The desktop and `watch` share one background service and cannot run simultaneously for the same configuration.
@@ -60,6 +68,7 @@ Run `tide --help` for pause/resume, export, conflict resolution and recoverable 
 | Coordination | Worker threads, per-folder serialization, at most two concurrent tasks, typed phase/failure events |
 | Files and configuration | `notify`, TOML/serde, atomic writes, lock files, persistent write-recovery journal |
 | Desktop integration | `tray-icon`, `rfd`, `single-instance`, `auto-launch`, `notify-rust` |
+| Updates | GitHub release feed, `ureq` with Windows TLS and proxy settings, SHA-256 verification, silent Inno Setup upgrade |
 | Windows distribution | Embedded multi-resolution icon, static MSVC CRT, Inno Setup installer and portable ZIP, GitHub Actions builds |
 
 ## Build and contribute
@@ -81,7 +90,7 @@ cargo build -p tide-app --release --no-default-features --locked
 - Ask-mode conflicts and unstable/locked/oversized files stop that folder's current round. The default keeps both conflict versions.
 - No Git LFS, symlinks/junctions, submodules, non-UTF-8 filenames or Windows-incompatible paths.
 - Tracked files are checked as raw bytes; the original scan/memory/size performance targets are not all met or benchmarked.
-- No built-in keyring/token UI, signed installer, automatic updater or dedicated sleep/wake integration.
+- No built-in keyring/token UI, signed installer or dedicated sleep/wake integration. Automatic updates apply to the Windows installer build only.
 - Hash checks and recoverable atomic replacement reduce write risk but cannot guarantee against every editor/filesystem race. Inspect safety pauses before resuming.
 
 ## License

@@ -79,6 +79,16 @@ export component MainWindow inherits Window {
     in-out property <int> policy-index;
     in-out property <string> ignores;
     in-out property <bool> confirm-remove;
+    in-out property <bool> auto-update: true;
+    in property <string> app-version;
+    in property <string> update-status;
+    in property <bool> update-checking;
+    // Version of a verified installer waiting for a restart; empty when none.
+    in property <string> update-ready;
+    in property <bool> update-page;
+    callback check-update;
+    callback apply-update;
+    callback open-release;
     callback select-folder(string);
     callback switch-tab(int);
     callback sync(bool);
@@ -148,6 +158,7 @@ export component MainWindow inherits Window {
                     }
                 }
                 Action { text: "全部同步    Ctrl Shift R"; clicked => { root.sync-all(); } }
+                if root.update-ready != "": Action { text: "重启以更新到 " + root.update-ready; primary: true; clicked => { root.apply-update(); } }
                 Rectangle { height: 1px; background: root.line; }
                 HorizontalLayout { Action { text: "设置"; clicked => { root.edit-settings(); } } Action { text: "关于"; clicked => { root.about-open = true; } } }
                 Text { text: root.footer; color: root.secondary; font-size: 10px; wrap: word-wrap; }
@@ -235,7 +246,7 @@ export component MainWindow inherits Window {
                 TextEdit { text <=> root.ignores; height: 110px; }
                 HorizontalLayout { Action { text: "保存规则"; primary: true; enabled: root.selected-id != ""; clicked => { root.save-rules(); } } Action { text: "打开文件夹"; clicked => { root.open-folder(); } } Action { text: "连接预览"; clicked => { root.plan(); } } }
                 Rectangle { height: 1px; background: root.line; }
-                Text { text: "覆盖会追加一个新版本，可从历史恢复。"; color: root.secondary; font-size: 11px; }
+                Text { text: "本地覆盖远端会追加一个新版本；远端覆盖本地前，本地版本会留在本机历史里，可随时恢复。"; color: root.secondary; font-size: 11px; wrap: word-wrap; }
                 HorizontalLayout { Action { text: "本地覆盖远端"; enabled: !root.busy; clicked => { root.overwrite(true); } } Action { text: "远端覆盖本地"; enabled: !root.busy; clicked => { root.overwrite(false); } } }
                 HorizontalLayout { Action { text: "恢复中断现场"; enabled: !root.busy; clicked => { root.recover(); } } Action { text: "从 Tide 移除"; enabled: !root.busy; clicked => { root.confirm-remove = true; } } }
                 if root.confirm-remove: HorizontalLayout { Text { text: "保留文件和全部历史，仅停止同步。"; color: root.secondary; font-size: 11px; } Action { text: "确认移除"; clicked => { root.remove-folder(); root.confirm-remove = false; } } }
@@ -251,7 +262,7 @@ export component MainWindow inherits Window {
         Rectangle {
             x: (parent.width - self.width)/2; y: (parent.height - self.height)/2;
             width: root.diff-open ? parent.width - 110px : 560px;
-            height: root.diff-open ? parent.height - 100px : root.about-open || root.export-open ? 350px : 530px;
+            height: root.diff-open ? parent.height - 100px : root.about-open ? 430px : root.export-open ? 350px : 560px;
             background: root.light-theme ? #f7f9fa : #15191b; border-radius: 8px; border-width: 1px; border-color: root.line;
             VerticalLayout {
                 padding: 26px; spacing: 16px;
@@ -274,6 +285,7 @@ export component MainWindow inherits Window {
                     ComboBox { model: ["跟随系统", "浅色", "深色"]; current-index <=> root.theme-index; }
                     CheckBox { text: "关闭窗口后留在托盘"; checked <=> root.close-to-tray; }
                     CheckBox { text: "开机启动"; checked <=> root.autostart; }
+                    CheckBox { text: "自动检查更新（每天一次，下载后校验，重启时安装）"; checked <=> root.auto-update; }
                     ComboBox { model: ["仅错误通知", "每次同步通知", "关闭通知"]; current-index <=> root.notification-index; }
                     Text { text: "跨设备共享主题和通知偏好；导出到同步文件夹后，在另一台设备导入。"; color: root.secondary; wrap: word-wrap; font-size: 11px; }
                     HorizontalLayout { Action { text: "导出偏好…"; clicked => { root.export-preferences(); } } Action { text: "导入偏好…"; clicked => { root.import-preferences(); } } }
@@ -281,9 +293,16 @@ export component MainWindow inherits Window {
                     Rectangle { vertical-stretch: 1; }
                     HorizontalLayout { Action { text: "配置文件"; clicked => { root.open-config(); } } Rectangle { horizontal-stretch: 1; } Action { text: "保存"; primary: true; clicked => { root.save-settings(); } } Action { text: "退出 Tide"; clicked => { root.quit(); } } }
                 }
-                if root.about-open: VerticalLayout { spacing: 20px;
-                    Text { text: "Tide 0.1 · Git 文档同步"; color: root.fg; font-size: 16px; }
+                if root.about-open: VerticalLayout { spacing: 16px;
+                    Text { text: "Tide " + root.app-version + " · Git 文档同步"; color: root.fg; font-size: 16px; }
                     Text { text: "每个文件夹独立同步，历史持续保留。\nRust · libgit2 · Slint"; color: root.secondary; wrap: word-wrap; }
+                    Text { text: root.update-status != "" ? root.update-status : "新版本发布在 GitHub Releases。"; color: root.secondary; font-size: 11px; wrap: word-wrap; }
+                    HorizontalLayout { spacing: 8px;
+                        if root.update-ready != "": Action { text: "重启并更新到 " + root.update-ready; primary: true; clicked => { root.apply-update(); } }
+                        if root.update-ready == "" && root.update-page: Action { text: "打开发布页"; primary: true; clicked => { root.open-release(); } }
+                        if root.update-ready == "": Action { text: root.update-checking ? "正在检查…" : "检查更新"; enabled: !root.update-checking; clicked => { root.check-update(); } }
+                        Rectangle { horizontal-stretch: 1; }
+                    }
                     AboutSlint { }
                 }
                 if root.diff-open: TextEdit { text <=> root.diff-text; read-only: true; }

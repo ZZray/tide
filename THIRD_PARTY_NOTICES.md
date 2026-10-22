@@ -11,6 +11,7 @@ Tide 原创应用代码和品牌资源使用 MIT；第三方组件仍遵循各�
 | git2-rs / libgit2 | Git transport and history | [git2-rs](https://github.com/rust-lang/git2-rs) MIT/Apache-2.0; [libgit2](https://github.com/libgit2/libgit2) GPL-2.0 with linking exception |
 | libssh2 | SSH transport | [BSD-style license](https://github.com/libssh2/libssh2/blob/master/COPYING) |
 | notify | OS file events | [Artistic-2.0](https://github.com/notify-rs/notify) |
+| ureq, native-tls, schannel, winreg, sha2, semver | Update checks and verified downloads | MIT / Apache-2.0, as recorded by Cargo metadata |
 | tray-icon, muda, rfd, single-instance, auto-launch | Desktop integration | MIT / Apache-2.0 / other upstream license choices, as recorded by Cargo metadata |
 | serde, toml, clap, image, chrono and transitive dependencies | Data, CLI, icons and time | License expressions and original notices are included in the generated license inventory |
 

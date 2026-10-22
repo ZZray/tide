@@ -27,6 +27,14 @@ pub struct App {
     pub close_to_tray: bool,
     pub autostart: bool,
     pub notify: Notification,
+    /// Check GitHub Releases daily; installer builds also download verified updates,
+    /// portable copies only report the new version.
+    /// Written only when disabled, so configurations stay readable by older versions.
+    #[serde(skip_serializing_if = "is_true")]
+    pub auto_update: bool,
+}
+fn is_true(value: &bool) -> bool {
+    *value
 }
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -55,6 +63,7 @@ impl Default for App {
             close_to_tray: true,
             autostart: false,
             notify: Notification::Errors,
+            auto_update: true,
         }
     }
 }
@@ -449,6 +458,17 @@ mod tests {
         ));
         assert!(c.validate().is_err());
         assert!(Config::init(&p).is_err());
+    }
+    #[test]
+    fn auto_update_defaults_on_and_is_written_only_when_disabled() {
+        let parsed: Config = toml::from_str("[app]\ntheme = \"dark\"\n").unwrap();
+        assert!(parsed.app.auto_update);
+        assert!(!toml::to_string(&parsed).unwrap().contains("auto_update"));
+        let mut off = parsed.clone();
+        off.app.auto_update = false;
+        let text = toml::to_string(&off).unwrap();
+        assert!(text.contains("auto_update = false"));
+        assert!(!toml::from_str::<Config>(&text).unwrap().app.auto_update);
     }
     #[test]
     fn reject_embedded_tokens() {

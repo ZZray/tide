@@ -5,6 +5,7 @@
 use anyhow::{bail, Result};
 #[cfg(feature = "desktop")]
 mod desktop;
+mod update;
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use tide_core::{Config, Folder};
@@ -123,6 +124,18 @@ enum Command {
         #[command(subcommand)]
         command: PreferencesCommand,
     },
+    /// Check GitHub Releases for a newer version, or download and run its installer.
+    Update {
+        #[command(subcommand)]
+        command: UpdateCommand,
+    },
+}
+#[derive(Subcommand)]
+enum UpdateCommand {
+    /// Report the current and latest published versions.
+    Check,
+    /// Download the newer installer, verify its SHA-256 and start the setup wizard.
+    Install,
 }
 #[derive(Subcommand)]
 enum PreferencesCommand {
@@ -314,6 +327,51 @@ fn execute(cli: Cli) -> Result<()> {
                 json(&preferences)?;
             }
         },
+        Command::Update { command } => run_update(command)?,
     }
     Ok(())
+}
+
+#[cfg(windows)]
+fn run_update(command: UpdateCommand) -> Result<()> {
+    #[derive(serde::Serialize)]
+    struct Status {
+        current: String,
+        latest: Option<update::Release>,
+        installed: bool,
+    }
+    let latest = update::check()?;
+    let installed = update::installed_dir().is_some();
+    match command {
+        UpdateCommand::Check => json(&Status {
+            current: update::current_version().to_string(),
+            latest,
+            installed,
+        }),
+        UpdateCommand::Install => {
+            let Some(release) = latest else {
+                println!("Tide {} is up to date.", update::current_version());
+                return Ok(());
+            };
+            if !installed {
+                bail!(
+                    "this is a portable copy; download Tide {} from {}",
+                    release.version,
+                    release.page
+                );
+            }
+            let installer = update::download(&release)?;
+            println!("Verified {}", installer.path.display());
+            update::launch_installer(&installer, update::InstallMode::Wizard)?;
+            println!("Setup for Tide {} started.", release.version);
+            Ok(())
+        }
+    }
+}
+#[cfg(not(windows))]
+fn run_update(_: UpdateCommand) -> Result<()> {
+    bail!(
+        "automatic updates support the Windows installer; see {}/releases",
+        update::REPOSITORY
+    )
 }

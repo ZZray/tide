@@ -1,3 +1,4 @@
+use crate::update;
 use anyhow::{Context, Result};
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::{
@@ -49,6 +50,45 @@ struct Controller {
     history: Vec<HistoryEntry>,
     history_skip: usize,
     tray: Option<tray_icon::TrayIcon>,
+    tray_update: Option<tray_icon::menu::MenuItem>,
+    update: UpdateState,
+}
+#[derive(Default)]
+struct UpdateState {
+    checking: bool,
+    status: String,
+    /// Verified installer ready to run.
+    ready: Option<ReadyUpdate>,
+    /// The last automatic check failed; retry sooner than the daily interval.
+    failed: bool,
+    /// Release page for a newer version that this (portable) copy cannot install itself.
+    page: Option<String>,
+    last_check: Option<std::time::Instant>,
+    notified: bool,
+    /// Installer to start after the event loop ends and the sync service has stopped,
+    /// and whether Tide restarts in the tray only (the window was closed).
+    pending_install: Option<(ReadyUpdate, bool)>,
+}
+// Updates are produced only on Windows (installer builds).
+#[cfg_attr(not(windows), allow(dead_code))]
+#[derive(Clone)]
+struct ReadyUpdate {
+    version: String,
+    path: PathBuf,
+    sha256: String,
+}
+#[cfg_attr(not(windows), allow(dead_code))]
+enum UpdateEvent {
+    UpToDate,
+    Available(update::Release),
+    Downloading(update::Release),
+    Ready(update::Release, update::Download),
+    /// `retry_soon`: the feed was unreachable (offline, proxy). Download or checksum
+    /// failures of a release wait for the next daily or manual check instead.
+    Failed {
+        error: String,
+        retry_soon: bool,
+    },
 }
 fn color(r: u8, g: u8, b: u8) -> slint::Color {
     slint::Color::from_rgb_u8(r, g, b)
@@ -142,6 +182,7 @@ impl Controller {
                 ui.set_device_name(self.config.app.device_name.clone().into());
                 ui.set_close_to_tray(self.config.app.close_to_tray);
                 ui.set_autostart(self.config.app.autostart);
+                ui.set_auto_update(self.config.app.auto_update);
                 ui.set_theme_index(match self.config.app.theme {
                     Theme::System => 0,
                     Theme::Light => 1,
@@ -186,6 +227,7 @@ impl Controller {
                 ui.set_busy(false);
             }
         }
+        self.render_update();
         if let Some(tray) = &self.tray {
             let summary = if !self.busy.is_empty() {
                 "正在同步"
@@ -196,6 +238,155 @@ impl Controller {
             };
             let _ = tray.set_tooltip(Some(format!("Tide · {summary}")));
         }
+    }
+    fn render_update(&self) {
+        let Some(ui) = self.ui() else {
+            return;
+        };
+        ui.set_app_version(update::current_version().to_string().into());
+        ui.set_update_status(self.update.status.clone().into());
+        ui.set_update_checking(self.update.checking);
+        ui.set_update_ready(
+            self.update
+                .ready
+                .as_ref()
+                .map(|ready| ready.version.clone())
+                .unwrap_or_default()
+                .into(),
+        );
+        ui.set_update_page(self.update.page.is_some());
+    }
+    /// `manual` checks report every outcome; automatic ones stay quiet unless an update is ready.
+    fn start_update_check(&mut self, manual: bool) {
+        if self.update.checking || self.update.ready.is_some() {
+            self.render_update();
+            return;
+        }
+        self.update.last_check = Some(std::time::Instant::now());
+        #[cfg(windows)]
+        {
+            self.update.checking = true;
+            self.update.status = "正在检查更新…".into();
+            std::thread::spawn(move || {
+                let send = |event: UpdateEvent| {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        with_controller(|c| c.update_event(event, manual))
+                    });
+                };
+                match update::check() {
+                    Ok(None) => send(UpdateEvent::UpToDate),
+                    Ok(Some(release)) if update::installed_dir().is_none() => {
+                        send(UpdateEvent::Available(release))
+                    }
+                    Ok(Some(release)) => {
+                        send(UpdateEvent::Downloading(release.clone()));
+                        match update::download(&release) {
+                            Ok(download) => send(UpdateEvent::Ready(release, download)),
+                            Err(error) => send(UpdateEvent::Failed {
+                                error: format!("{error:#}"),
+                                retry_soon: false,
+                            }),
+                        }
+                    }
+                    Err(error) => send(UpdateEvent::Failed {
+                        error: format!("{error:#}"),
+                        retry_soon: true,
+                    }),
+                }
+            });
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = manual;
+            self.update.status = "自动更新目前只支持 Windows 安装版。".into();
+        }
+        self.render_update();
+    }
+    #[cfg_attr(not(windows), allow(dead_code))]
+    fn update_event(&mut self, event: UpdateEvent, manual: bool) {
+        let checked = chrono::Local::now().format("%H:%M");
+        self.update.failed = matches!(
+            event,
+            UpdateEvent::Failed {
+                retry_soon: true,
+                ..
+            }
+        );
+        match event {
+            UpdateEvent::UpToDate => {
+                self.update.checking = false;
+                self.update.page = None;
+                self.update.status = format!(
+                    "已是最新版本 {} · {checked} 检查",
+                    update::current_version()
+                );
+            }
+            UpdateEvent::Available(release) => {
+                self.update.checking = false;
+                self.update.status = format!(
+                    "发现新版本 {}。这是便携版，请到发布页下载后替换。",
+                    release.version
+                );
+                self.update.page = Some(release.page);
+            }
+            UpdateEvent::Downloading(release) => {
+                self.update.status = format!("发现新版本 {}，正在下载并校验…", release.version);
+            }
+            UpdateEvent::Ready(release, download) => {
+                self.update.checking = false;
+                self.update.status = format!(
+                    "{} 已下载并通过校验。重启 Tide 即可完成更新，正在进行的同步会先完成。",
+                    release.version
+                );
+                if let Some(item) = &self.tray_update {
+                    item.set_text(format!("重启以更新到 {}", release.version));
+                }
+                if !self.update.notified && self.config.app.notify != Notification::Off {
+                    self.update.notified = true;
+                    let body = format!(
+                        "Tide {} 已准备好。在托盘菜单或“关于”里重启即可更新。",
+                        release.version
+                    );
+                    std::thread::spawn(move || {
+                        let _ = notify_rust::Notification::new()
+                            .summary("Tide 有新版本")
+                            .body(&body)
+                            .show();
+                    });
+                }
+                self.update.ready = Some(ReadyUpdate {
+                    version: release.version,
+                    path: download.path,
+                    sha256: download.sha256,
+                });
+            }
+            UpdateEvent::Failed { error, .. } => {
+                self.update.checking = false;
+                self.update.status = format!("检查更新失败：{error}");
+                if manual {
+                    self.error(format!("检查更新失败：{error}"));
+                }
+            }
+        }
+        self.render_update();
+    }
+    /// Close the window and quit; `run` starts the installer once syncing has stopped.
+    fn apply_update(&mut self) {
+        let Some(ready) = self.update.ready.clone() else {
+            return;
+        };
+        let background = self.ui().is_none();
+        self.update.pending_install = Some((ready, background));
+        // Deferred like close_requested: this may run inside the window's own click handler.
+        let _ = slint::invoke_from_event_loop(|| {
+            WINDOW.with(|slot| {
+                if let Some(ui) = slot.borrow_mut().take() {
+                    let _ = ui.hide();
+                }
+            });
+            with_controller(|c| c.ui = None);
+            let _ = slint::quit_event_loop();
+        });
     }
     fn load_rules(&self) {
         if let (Some(ui), Ok(f)) = (self.ui(), self.config.folder(&self.selected)) {
@@ -277,6 +468,14 @@ impl Controller {
                             run.elapsed_ms as f64 / 1000.0
                         );
                         if let Some(report) = &run.report {
+                            if report.changed + report.uploaded > 0 {
+                                s.detail = format!(
+                                    "{} · 上传 {} 个 · 下载 {} 个",
+                                    chrono::Local::now().format("%H:%M"),
+                                    report.uploaded,
+                                    report.changed
+                                );
+                            }
                             if !report.conflicts.is_empty() {
                                 s.detail =
                                     format!("两份版本已保留 · {} 个冲突", report.conflicts.len());
@@ -357,12 +556,13 @@ impl Controller {
                         .iter()
                         .map(|entry| DetailRow {
                             key: entry.id.clone().into(),
-                            title: entry
-                                .message
-                                .replace("Tide: local snapshot", "自动保存")
-                                .replace("Tide: reconcile devices", "合并设备改动")
-                                .into(),
-                            detail: format!("{} · {}", entry.device, &entry.id[..8]).into(),
+                            title: history_title(&entry.message).into(),
+                            detail: if entry.local_only {
+                                format!("{} · {} · 仅保存在本机", entry.device, &entry.id[..8])
+                            } else {
+                                format!("{} · {}", entry.device, &entry.id[..8])
+                            }
+                            .into(),
                             tag: chrono::DateTime::from_timestamp(entry.timestamp, 0)
                                 .map(|d| {
                                     d.with_timezone(&chrono::Local)
@@ -506,13 +706,19 @@ pub fn run(path: PathBuf, background: bool, smoke_output: Option<PathBuf>) -> Re
         history: vec![],
         history_skip: 0,
         tray: None,
+        tray_update: None,
+        update: UpdateState::default(),
     }));
     CONTROLLER.with(|slot| *slot.borrow_mut() = Some(controller.clone()));
     #[cfg(windows)]
-    let tray = make_tray().ok();
+    let (tray, tray_update) = match make_tray() {
+        Ok((tray, item)) => (Some(tray), Some(item)),
+        Err(_) => (None, None),
+    };
     #[cfg(not(windows))]
-    let tray = None;
+    let (tray, tray_update) = (None, None);
     controller.borrow_mut().tray = tray;
+    controller.borrow_mut().tray_update = tray_update;
     if !background || controller.borrow().tray.is_none() {
         show_window()?;
     }
@@ -523,6 +729,27 @@ pub fn run(path: PathBuf, background: bool, smoke_output: Option<PathBuf>) -> Re
             }
         }
     });
+    // Automatic update check: about a minute after start, then daily while running;
+    // a failed check (offline, proxy down) is retried after an hour.
+    let update_timer = slint::Timer::default();
+    if smoke_output.is_none() {
+        update_timer.start(
+            slint::TimerMode::Repeated,
+            Duration::from_secs(60),
+            move || {
+                with_controller(|c| {
+                    let hours = if c.update.failed { 1 } else { 24 };
+                    let due = c
+                        .update
+                        .last_check
+                        .is_none_or(|last| last.elapsed() >= Duration::from_secs(hours * 3600));
+                    if c.config.app.auto_update && due {
+                        c.start_update_check(false);
+                    }
+                })
+            },
+        );
+    }
     let smoke_timer = slint::Timer::default();
     let smoke_failed = Rc::new(std::cell::Cell::new(false));
     if let Some(output) = smoke_output {
@@ -591,12 +818,61 @@ pub fn run(path: PathBuf, background: bool, smoke_output: Option<PathBuf>) -> Re
         );
     }
     slint::run_event_loop_until_quit()?;
-    service.shutdown()?;
+    drop(update_timer);
+    // Waits for the running sync task, so the installer never replaces files mid-sync.
+    let stopped = service.shutdown();
+    let pending_install = CONTROLLER.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .and_then(|c| c.borrow_mut().update.pending_install.take())
+    });
     WINDOW.with(|slot| slot.borrow_mut().take());
     CONTROLLER.with(|slot| slot.borrow_mut().take());
     drop(instance);
+    // The user asked to update: start setup even if stopping the service reported an error;
+    // the process is exiting either way and no further writes happen from here.
+    if let Some((ready, background)) = pending_install {
+        start_installer(ready, background);
+    }
+    stopped?;
     anyhow::ensure!(!smoke_failed.get(), "UI smoke capture failed");
     Ok(())
+}
+#[cfg(windows)]
+fn start_installer(ready: ReadyUpdate, background: bool) {
+    let download = update::Download {
+        path: ready.path,
+        sha256: ready.sha256,
+    };
+    if let Err(error) =
+        update::launch_installer(&download, update::InstallMode::Silent { background })
+    {
+        rfd::MessageDialog::new()
+            .set_title("Tide 更新没有开始")
+            .set_description(format!(
+                "{error:#}\n\n可以重新打开 Tide 再试，或到 {}/releases 手动下载安装包。",
+                update::REPOSITORY
+            ))
+            .set_level(rfd::MessageLevel::Error)
+            .show();
+    }
+}
+#[cfg(not(windows))]
+fn start_installer(_: ReadyUpdate, _: bool) {}
+fn history_title(message: &str) -> String {
+    let short = |id: &str| id.chars().take(8).collect::<String>();
+    match message {
+        "Tide: local snapshot" => "自动保存".into(),
+        "Tide: reconcile devices" => "合并设备改动".into(),
+        "Tide: replace remote from local" => "用本地版本覆盖远端".into(),
+        "Tide: replace local from remote" => "用远端版本覆盖本地".into(),
+        "Tide: replaced local version" => "被远端替换前的本地版本".into(),
+        "Tide: preserve worktree after interrupted write" => "保留中断时的文件夹内容".into(),
+        _ => match message.strip_prefix("Tide: restore ") {
+            Some(id) => format!("恢复到 {} 的版本", short(id)),
+            None => message.into(),
+        },
+    }
 }
 fn with_controller(action: impl FnOnce(&mut Controller)) {
     CONTROLLER.with(|slot| {
@@ -942,6 +1218,15 @@ fn show_window() -> Result<()> {
             }
         }
     });
+    ui.on_check_update(|| with_controller(|c| c.start_update_check(true)));
+    ui.on_apply_update(|| with_controller(Controller::apply_update));
+    ui.on_open_release(|| {
+        with_controller(|c| {
+            if let Some(page) = &c.update.page {
+                let _ = open::that_detached(page);
+            }
+        })
+    });
     ui.on_quit(|| {
         let _ = slint::quit_event_loop();
     });
@@ -979,6 +1264,7 @@ fn save_settings(c: &mut Controller) {
     app.device_name = ui.get_device_name().trim().into();
     app.close_to_tray = ui.get_close_to_tray();
     app.autostart = ui.get_autostart();
+    app.auto_update = ui.get_auto_update();
     app.theme = match ui.get_theme_index() {
         1 => Theme::Light,
         2 => Theme::Dark,
@@ -1023,21 +1309,23 @@ fn save_settings(c: &mut Controller) {
     }
 }
 #[cfg(windows)]
-fn make_tray() -> Result<tray_icon::TrayIcon> {
+fn make_tray() -> Result<(tray_icon::TrayIcon, tray_icon::menu::MenuItem)> {
     use tray_icon::{
         menu::{Menu, MenuEvent, MenuItem},
         TrayIconBuilder, TrayIconEvent,
     };
     let menu = Menu::new();
+    let update_item = MenuItem::with_id("update", "检查更新", true, None);
     for (id, text) in [
         ("show", "打开 Tide"),
         ("sync", "全部同步"),
         ("pause", "暂停全部"),
         ("resume", "继续全部"),
-        ("quit", "退出"),
     ] {
         menu.append(&MenuItem::with_id(id, text, true, None))?;
     }
+    menu.append(&update_item)?;
+    menu.append(&MenuItem::with_id("quit", "退出", true, None))?;
     MenuEvent::set_event_handler(Some(|event: MenuEvent| {
         let id = event.id.0;
         let _ = slint::invoke_from_event_loop(move || match id.as_str() {
@@ -1070,6 +1358,25 @@ fn make_tray() -> Result<tray_icon::TrayIcon> {
                     c.reload();
                 }
             }),
+            "update" => {
+                let ready = CONTROLLER.with(|slot| {
+                    slot.borrow()
+                        .as_ref()
+                        .is_some_and(|c| c.borrow().update.ready.is_some())
+                });
+                if ready {
+                    with_controller(Controller::apply_update);
+                } else {
+                    // Show the result where it is reported: the About dialog.
+                    let _ = show_window();
+                    with_controller(|c| {
+                        if let Some(ui) = c.ui() {
+                            ui.set_about_open(true);
+                        }
+                        c.start_update_check(true);
+                    });
+                }
+            }
             "quit" => {
                 let _ = slint::quit_event_loop();
             }
@@ -1093,11 +1400,12 @@ fn make_tray() -> Result<tray_icon::TrayIcon> {
     let icon =
         image::load_from_memory(include_bytes!("../../../assets/brand/tide-tray.png"))?.to_rgba8();
     let (width, height) = icon.dimensions();
-    Ok(TrayIconBuilder::new()
+    let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
         .with_tooltip("Tide · 文档同步")
         .with_icon(tray_icon::Icon::from_rgba(icon.into_raw(), width, height)?)
-        .build()?)
+        .build()?;
+    Ok((tray, update_item))
 }
 fn activate_existing() {
     #[cfg(windows)]
@@ -1248,6 +1556,8 @@ mod tests {
             history: vec![],
             history_skip: 0,
             tray: None,
+            tray_update: None,
+            update: UpdateState::default(),
         };
         let entry = HistoryEntry {
             id: "0123456789abcdef".into(),
@@ -1255,6 +1565,7 @@ mod tests {
             timestamp: 0,
             message: "test".into(),
             changed: 1,
+            local_only: false,
         };
         c.event(ServiceEvent::Completed {
             id: "f-test".into(),

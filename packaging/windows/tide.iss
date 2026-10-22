@@ -52,3 +52,43 @@ Name: "{autodesktop}\Tide"; Filename: "{app}\tide.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\tide.exe"; Description: "Launch Tide"; Flags: nowait postinstall skipifsilent
+; In-app updates run silently with /RELAUNCH=window|background and start Tide again.
+Filename: "{app}\tide.exe"; Flags: nowait; Check: RelaunchMode('window')
+Filename: "{app}\tide.exe"; Parameters: "gui --background"; Flags: nowait; Check: RelaunchMode('background')
+
+[Code]
+const
+  SYNCHRONIZE = $00100000;
+
+function OpenProcess(DesiredAccess: Cardinal; InheritHandle: Integer; ProcessId: Cardinal): THandle;
+  external 'OpenProcess@kernel32.dll stdcall';
+function WaitForSingleObject(Handle: THandle; Milliseconds: Cardinal): Cardinal;
+  external 'WaitForSingleObject@kernel32.dll stdcall';
+function CloseHandle(Handle: THandle): Integer;
+  external 'CloseHandle@kernel32.dll stdcall';
+
+{ /WAITPID=<pid>: Tide starts the installer as its last step; wait until that process has
+  exited so tide.exe is no longer in use. }
+function InitializeSetup(): Boolean;
+var
+  Pid: Cardinal;
+  Handle: THandle;
+begin
+  Pid := StrToIntDef(ExpandConstant('{param:WAITPID|0}'), 0);
+  if Pid <> 0 then
+  begin
+    Handle := OpenProcess(SYNCHRONIZE, 0, Pid);
+    if Handle <> 0 then
+    begin
+      Log('Waiting for Tide process ' + IntToStr(Pid) + ' to exit');
+      WaitForSingleObject(Handle, 60000);
+      CloseHandle(Handle);
+    end;
+  end;
+  Result := True;
+end;
+
+function RelaunchMode(Mode: String): Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|}') = Mode;
+end;

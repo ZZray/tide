@@ -63,7 +63,11 @@ impl RepoOptions {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SyncReport {
     pub head: String,
+    /// Files added, modified or deleted in the local folder by this round.
     pub changed: usize,
+    /// Files added, modified or deleted on the remote branch by this round.
+    #[serde(default)]
+    pub uploaded: usize,
     pub conflicts: Vec<Conflict>,
     pub warnings: Vec<String>,
     pub mirror_errors: Vec<String>,
@@ -77,6 +81,8 @@ pub struct HistoryEntry {
     pub timestamp: i64,
     pub message: String,
     pub changed: usize,
+    /// Kept only on this device, e.g. a local version replaced by the remote one.
+    pub local_only: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -113,6 +119,79 @@ struct Journal {
     before_modes: BTreeMap<String, u32>,
     #[serde(default)]
     case_renames: BTreeMap<String, String>,
+}
+
+/// Paths added, modified or removed between two file sets.
+fn count_changes(before: &Files, after: &Files) -> usize {
+    before
+        .iter()
+        .filter(|(p, v)| after.get(*p) != Some(*v))
+        .count()
+        + after.keys().filter(|p| !before.contains_key(*p)).count()
+}
+
+/// libgit2 C-quotes non-ASCII paths in patch headers (git's `core.quotepath`),
+/// e.g. `"a/\344\271\246.md"`. Decode quoted segments so headers read as UTF-8.
+fn unquote_header(line: &[u8]) -> Vec<u8> {
+    let octal = |b: u8| (b'0'..=b'7').contains(&b);
+    let mut out = Vec::with_capacity(line.len());
+    let mut i = 0;
+    while i < line.len() {
+        if line[i] != b'"' {
+            out.push(line[i]);
+            i += 1;
+            continue;
+        }
+        let mut decoded = Vec::new();
+        let mut j = i + 1;
+        let mut closed = false;
+        while j < line.len() {
+            match line[j] {
+                b'"' => {
+                    closed = true;
+                    break;
+                }
+                b'\n' => break,
+                b'\\'
+                    if j + 3 < line.len()
+                        && (b'0'..=b'3').contains(&line[j + 1])
+                        && octal(line[j + 2])
+                        && octal(line[j + 3]) =>
+                {
+                    decoded.push(
+                        (line[j + 1] - b'0') * 64 + (line[j + 2] - b'0') * 8 + (line[j + 3] - b'0'),
+                    );
+                    j += 4;
+                }
+                b'\\' if j + 1 < line.len() => {
+                    decoded.push(match line[j + 1] {
+                        b'n' => b'\n',
+                        b't' => b'\t',
+                        b'r' => b'\r',
+                        b'a' => 7,
+                        b'b' => 8,
+                        b'f' => 12,
+                        b'v' => 11,
+                        other => other,
+                    });
+                    j += 2;
+                }
+                byte => {
+                    decoded.push(byte);
+                    j += 1;
+                }
+            }
+        }
+        if closed {
+            out.extend_from_slice(&decoded);
+            i = j + 1;
+        } else {
+            // Not a quoted path: keep the original bytes.
+            out.push(line[i]);
+            i += 1;
+        }
+    }
+    out
 }
 
 fn atomic_json(path: &Path, value: &impl Serialize) -> Result<()> {
@@ -396,6 +475,9 @@ impl LibgitBackend {
         }
         let (local, warnings) = self.snapshot(true)?;
         let remote = self.fetch()?;
+        if !use_local && remote.is_none() {
+            bail!("remote branch has no content; nothing to replace the local folder with");
+        }
         let local_files = local
             .map(|id| self.files_at(id))
             .transpose()?
@@ -413,13 +495,17 @@ impl LibgitBackend {
         if let Some(remote) = remote {
             parents.push(remote);
         }
-        if let Some(local) = local {
-            if !parents.contains(&local) {
-                parents.push(local);
-            }
-        }
-        if !use_local {
+        if use_local {
             if let Some(local) = local {
+                if !parents.contains(&local) {
+                    parents.push(local);
+                }
+            }
+        } else if let (Some(local), Some(remote)) = (local, remote) {
+            // The replaced local version stays on this device only: it is kept under
+            // refs/tide/replaced/* (listed in history) but is not a parent, so it is never pushed.
+            let published = local == remote || self.repo.graph_descendant_of(remote, local)?;
+            if !published {
                 self.repo.reference(
                     &format!(
                         "refs/tide/replaced/{}",
@@ -431,21 +517,17 @@ impl LibgitBackend {
                 )?;
             }
         }
-        let files = if use_local {
-            &local_files
-        } else {
-            &remote_files
+        let target = match remote {
+            // Remote content already exists as a commit: adopt it instead of adding an empty one.
+            Some(remote) if !use_local => remote,
+            _ => self.commit(&local_files, &parents, "Tide: replace remote from local")?,
         };
-        let target = self.commit(
-            files,
-            &parents,
-            if use_local {
-                "Tide: replace remote from local"
-            } else {
-                "Tide: replace local from remote"
-            },
-        )?;
         self.install(target, &local_files)?;
+        let (changed, uploaded) = if use_local {
+            (0, count_changes(&remote_files, &local_files))
+        } else {
+            (count_changes(&local_files, &remote_files), 0)
+        };
         if use_local {
             self.push(&self.options.remote, target).context("remote changed or push failed; local replacement commit is preserved; review and retry")?;
             self.repo
@@ -453,6 +535,8 @@ impl LibgitBackend {
         }
         Ok(SyncReport {
             head: target.to_string(),
+            changed,
+            uploaded,
             warnings,
             ..Default::default()
         })
@@ -1110,10 +1194,14 @@ impl LibgitBackend {
         )?;
         let mut out = Vec::new();
         diff.print(git2::DiffFormat::Patch, |_, _, line| {
-            if matches!(line.origin(), '+' | '-' | ' ') {
-                out.push(line.origin() as u8);
+            match line.origin() {
+                '+' | '-' | ' ' => {
+                    out.push(line.origin() as u8);
+                    out.extend_from_slice(line.content());
+                }
+                'F' => out.extend(unquote_header(line.content())),
+                _ => out.extend_from_slice(line.content()),
             }
-            out.extend_from_slice(line.content());
             true
         })?;
         Ok(String::from_utf8_lossy(&out).into_owned())
@@ -1152,9 +1240,18 @@ impl GitBackend for LibgitBackend {
             warnings,
             ..Default::default()
         };
+        // Folder content before this round; retries re-snapshot after partial writes.
+        let before = local
+            .map(|id| self.files_at(id))
+            .transpose()?
+            .unwrap_or_default();
         for attempt in 0..3 {
             let remote = self.fetch()?;
             let old = local
+                .map(|id| self.files_at(id))
+                .transpose()?
+                .unwrap_or_default();
+            let remote_files = remote
                 .map(|id| self.files_at(id))
                 .transpose()?
                 .unwrap_or_default();
@@ -1192,7 +1289,7 @@ impl GitBackend for LibgitBackend {
                         &self.repo,
                         &base,
                         &old,
-                        &self.files_at(r)?,
+                        &remote_files,
                         ReconcileOptions {
                             policy,
                             device: &self.options.device,
@@ -1224,15 +1321,6 @@ impl GitBackend for LibgitBackend {
                         report.pending = true;
                         return Ok(report);
                     }
-                    report.changed += old
-                        .iter()
-                        .filter(|(p, v)| result.files.get(*p) != Some(*v))
-                        .count()
-                        + result
-                            .files
-                            .keys()
-                            .filter(|p| !old.contains_key(*p))
-                            .count();
                     report.conflicts.extend(result.conflicts);
                     let id = self.commit(&result.files, &[r, l], "Tide: reconcile devices")?;
                     self.install(id, &old)?;
@@ -1248,7 +1336,10 @@ impl GitBackend for LibgitBackend {
                 Ok(()) => {
                     self.repo
                         .reference("refs/tide/synced", target, true, "Tide synchronized")?;
+                    let synced = self.files_at(target)?;
                     report.head = target.to_string();
+                    report.changed = count_changes(&before, &synced);
+                    report.uploaded = count_changes(&remote_files, &synced);
                     self.phase(SyncPhase::Mirrors);
                     for mirror in &self.options.mirrors {
                         if let Err(e) = self.push(mirror, target) {
@@ -1270,11 +1361,19 @@ impl GitBackend for LibgitBackend {
     }
 
     fn history(&self, skip: usize, limit: usize) -> Result<Vec<HistoryEntry>> {
-        if self.head()?.is_none() {
+        let Some(head) = self.head()? else {
             return Ok(vec![]);
-        }
+        };
         let mut walk = self.repo.revwalk()?;
         walk.push_head()?;
+        // Local versions replaced by "remote overwrites local" stay restorable from history.
+        let mut replaced = BTreeSet::new();
+        for reference in self.repo.references_glob("refs/tide/replaced/*")? {
+            if let Some(id) = reference?.target() {
+                walk.push(id)?;
+                replaced.insert(id);
+            }
+        }
         walk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?;
         walk.skip(skip)
             .take(limit.min(50))
@@ -1289,12 +1388,22 @@ impl GitBackend for LibgitBackend {
                     self.repo
                         .diff_tree_to_tree(parent.as_ref(), Some(&commit.tree()?), None)?;
                 let device = commit.author().name().unwrap_or("unknown").to_owned();
+                let local_only = !replaced.is_empty()
+                    && commit.id() != head
+                    && !self.repo.graph_descendant_of(head, commit.id())?;
                 Ok(HistoryEntry {
                     id: commit.id().to_string(),
                     device,
                     timestamp: commit.time().seconds(),
-                    message: commit.summary()?.unwrap_or("").into(),
+                    // A replaced ref whose commit is still reachable (older Tide, or an
+                    // interrupted replacement) is ordinary history, not a replaced version.
+                    message: if local_only && replaced.contains(&commit.id()) {
+                        "Tide: replaced local version".into()
+                    } else {
+                        commit.summary()?.unwrap_or("").into()
+                    },
                     changed: diff.deltas().len(),
+                    local_only,
                 })
             })
             .collect()

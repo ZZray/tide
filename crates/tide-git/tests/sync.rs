@@ -256,7 +256,8 @@ fn restore_and_overwrite_are_new_commits_and_old_versions_survive() {
     drop(a);
     put(&p.a, "file.txt", b"unpublished");
     let mut a = p.open(&p.a, "a", ConflictPolicy::KeepBoth);
-    a.overwrite(false, false).unwrap();
+    let report = a.overwrite(false, false).unwrap();
+    assert_eq!(report.changed, 1);
     assert_eq!(read(&p.a, "file.txt"), b"v1");
     assert!(a
         .repository()
@@ -264,6 +265,29 @@ fn restore_and_overwrite_are_new_commits_and_old_versions_survive() {
         .unwrap()
         .next()
         .is_some());
+    // The replaced version is listed locally and restorable, but never published.
+    let replaced = a
+        .history(0, 50)
+        .unwrap()
+        .into_iter()
+        .find(|e| e.message == "Tide: replaced local version")
+        .unwrap();
+    assert!(replaced.local_only);
+    assert!(a
+        .history(0, 50)
+        .unwrap()
+        .iter()
+        .filter(|e| !e.local_only)
+        .all(|e| e.message != "Tide: replaced local version"));
+    a.sync(false).unwrap();
+    let unpublished = Oid::hash_object(git2::ObjectType::Blob, b"unpublished").unwrap();
+    assert!(!Repository::open_bare(&p.remote)
+        .unwrap()
+        .odb()
+        .unwrap()
+        .exists(unpublished));
+    a.restore(&replaced.id, Some("file.txt")).unwrap();
+    assert_eq!(read(&p.a, "file.txt"), b"unpublished");
     put(&p.a, "file.txt", b"replace remote");
     a.overwrite(true, false).unwrap();
     drop(a);
@@ -342,6 +366,58 @@ fn history_pages_diff_and_export() {
     a.export(&first.to_string(), "note.txt", &output).unwrap();
     assert_eq!(fs::read(&output).unwrap(), b"v1\n");
     assert!(a.export(&first.to_string(), "note.txt", &output).is_err());
+}
+
+#[test]
+fn reports_count_local_and_remote_changes_in_every_path() {
+    let p = Pair::new();
+    put(&p.a, "one.txt", b"1");
+    put(&p.a, "two.txt", b"2");
+    let first = p.sync(&p.a);
+    assert_eq!((first.changed, first.uploaded), (0, 2));
+    // Fresh download into an empty folder.
+    let download = p.sync(&p.b);
+    assert_eq!((download.changed, download.uploaded), (2, 0));
+    // Fast-forward: A edits one, adds one, deletes one.
+    put(&p.a, "one.txt", b"1b");
+    put(&p.a, "three.txt", b"3");
+    fs::remove_file(p.a.join("two.txt")).unwrap();
+    let upload = p.sync(&p.a);
+    assert_eq!((upload.changed, upload.uploaded), (0, 3));
+    let pull = p.sync(&p.b);
+    assert_eq!((pull.changed, pull.uploaded), (3, 0));
+    // Reconcile: both sides changed different files.
+    put(&p.a, "one.txt", b"1c");
+    put(&p.b, "three.txt", b"3b");
+    p.sync(&p.a);
+    let merged = p.sync(&p.b);
+    assert_eq!((merged.changed, merged.uploaded), (1, 1));
+    let idle = p.sync(&p.b);
+    assert_eq!((idle.changed, idle.uploaded), (0, 0));
+}
+
+#[test]
+fn diff_headers_show_unicode_paths() {
+    let p = Pair::new();
+    p.seed("书单/第一册.md", b"v1\n");
+    put(&p.a, "书单/第一册.md", b"v2\n");
+    p.sync(&p.a);
+    let a = p.open(&p.a, "a", ConflictPolicy::KeepBoth);
+    let diff = a.diff("HEAD", None).unwrap();
+    assert!(diff.contains("a/书单/第一册.md"), "{diff}");
+    assert!(diff.contains("+++ b/书单/第一册.md"), "{diff}");
+    assert!(!diff.contains("\\344"), "{diff}");
+    assert!(diff.contains("+v2"));
+}
+
+#[test]
+fn replacing_local_from_an_empty_remote_is_refused() {
+    let p = Pair::new();
+    put(&p.a, "keep.txt", b"keep");
+    let mut a = p.open(&p.a, "a", ConflictPolicy::KeepBoth);
+    let error = a.overwrite(false, false).unwrap_err().to_string();
+    assert!(error.contains("no content"), "{error}");
+    assert_eq!(read(&p.a, "keep.txt"), b"keep");
 }
 
 #[test]

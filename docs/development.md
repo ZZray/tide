@@ -72,8 +72,34 @@ Local packaging requires PowerShell 7, Inno Setup 6 and a release build:
 
 ```powershell
 ./scripts/package-windows.ps1 -Executable ./target/release/tide.exe -OutputDirectory ./target/dist-local
-./scripts/test-windows-package.ps1 -Installer ./target/dist-local/Tide-v0.1.0-windows-x64-setup.exe
+./scripts/test-windows-package.ps1 -Installer ./target/dist-local/Tide-v<version>-windows-x64-setup.exe
 ```
+
+## In-app updates / 应用内更新
+
+Installed copies read `https://github.com/ZZray/tide/releases.atom`, take the highest
+semver `v*` tag, and download `releases/download/<tag>/Tide-<tag>-windows-x64-setup.exe`
+plus `SHA256SUMS.txt` from that release. These names are a contract with the release
+workflow: renaming assets or omitting the checksum file breaks updates for every
+installed copy. A release stays unusable for updates until both assets are attached;
+clients retry an hour later. Never re-tag a published version with different assets:
+clients compare against the checksum file of the tag they fetched.
+
+The installer is started as `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+/RELAUNCH=window|background /WAITPID=<pid> /LOG=<cache>\install.log` after the sync
+service has stopped; `packaging/windows/tide.iss` waits for that process and relaunches
+Tide (tray only when the window was closed). The checksum is verified again right before
+launch. A failed feed check retries after an hour; download or checksum failures wait for
+the next daily or manual check. Logs live in `%LOCALAPPDATA%\Tide\Tide\cache\updates`.
+
+The checksum file and installer come from the same release, so they protect against
+corrupted or substituted downloads, not against someone who can publish releases in this
+repository. Installers are not code-signed yet.
+
+已安装的 Tide 从 Atom 发布源选最高版本，按固定文件名下载安装包与 `SHA256SUMS.txt`，
+校验后在用户确认重启时静默升级。改资产命名、漏传校验文件或对已发布 tag 换资产都会
+让已安装用户无法更新。真实网络测试：`TIDE_REAL_NETWORK=1 cargo test -p tide-app --bin
+tide real_github`（会下载 v0.1.0 安装包到更新缓存并在结束时删除）。
 
 Original brand SVGs live in `assets/brand`. `scripts/generate-brand.ps1` rebuilds
 their PNG/ICO derivatives with Windows System.Drawing.

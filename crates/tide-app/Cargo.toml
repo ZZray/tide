@@ -24,6 +24,9 @@ serde.workspace = true
 tide-core = { path = "../tide-core" }
 tide-git = { path = "../tide-git" }
 chrono.workspace = true
+directories.workspace = true
+semver = "1"
+sha2 = "0.10"
 tempfile.workspace = true
 uuid.workspace = true
 slint = { version = "=1.16.1", default-features = false, features = ["std", "backend-winit", "renderer-software", "compat-1-2"], optional = true }
@@ -37,6 +40,8 @@ image = { version = "0.25", default-features = false, features = ["png"], option
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging", "Win32_System_Console"] }
+# Self-update over HTTPS: Windows certificate store (schannel) and environment/system proxy.
+ureq = { version = "3.5", default-features = false, features = ["native-tls-no-default", "win-system-proxy"] }
 
 [build-dependencies]
 slint-build = { version = "=1.16.1", optional = true }
